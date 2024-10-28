@@ -6,7 +6,14 @@ When you read about a piece of technology, try to understand the big picture of 
 trying to solve and why other options were not good enough. 
 
 # System Design Interview Framework
-> Gather Requirements -> API Design ( -> Optional: QPS Calculation) -> High level Diagram -> Schema and Data structures (-> Optional: Storage Calculation) -> End to End Flow Summary -> Deep Dives
+> * Gather Requirements
+> * API Design 
+> * (Optional: QPS Calculation) 
+> * High level Diagram 
+> * Schema and Data structures 
+> * (Optional: Storage Calculation)
+> * End to End Flow Summary
+> * Deep Dives
 
 ## Gather requirements
 The purpose of requirement gathering is to test your ability to clarify an open-
