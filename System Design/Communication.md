@@ -80,3 +80,15 @@ WebSocket connection. Since WebSocket establishes a bidirectional
 connection between client and server, it allows the server to push new
 messages immediately to the client. This is better than a periodic pull that
 would result in a slight delay.”
+
+## Questions to Interviewers:
+1. What is the structure of the team?
+2. Why are you hiring for this position?
+3. What does your tech stack look like? 
+4. How much of the job is working on legacy applications?
+5. How many regular meetings do software engineers have to attend? 
+6. Why do you like working here? 
+7. What training does the company offer?
+8. How often do you do a release? 
+9. How do you deal with tech debt?
+10. What is the team's biggest challenge?

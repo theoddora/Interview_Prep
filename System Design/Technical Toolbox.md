@@ -70,3 +70,38 @@ To solve for the total memory:
 4. Find out the final number
 5. Convert the final number into a readable number
 6. Do something with that number
+
+
+# API Design
+Ultimately, your
+goal is to ensure the API is clear, efficient, and solves the problem at hand. Here
+are some advanced concepts to talk about during the API design:
+
+## Idempotency
+1. Use Unique Identifiers for Requests.
+Assign a unique ID (e.g., UUID) to each request, which the server uses to track and process only once. This can also be the "\<User-Id>+\<method-name>+\<UUID>"
+2. Use Conditional Logic in Requests: For an update request (PUT), a client might specify an If-Match header with the resource’s current version. If the resource has changed, the server does not perform the update.
+3. Implement Retries with Idempotent Operations - For operations where retries are necessary (e.g., network errors), design operations to be inherently idempotent (e.g., PUT and DELETE requests in REST). In a payment API, mark transactions as “processed” after the first successful charge. Subsequent attempts detect this status and avoid re-charging the customer.
+4. Store and Check Operation Results Before Performing the Operation - Cache or record results of completed actions and check this record before executing the operation.
+5. Leverage HTTP Methods with Defined Idempotency - Use HTTP methods that are idempotent by definition (GET, PUT, DELETE, HEAD, and OPTIONS).
+
+
+## Client vs Server Generated Data
+You can have the server generate the timestamp instead of the
+client.
+
+## Efficiency
+You should think
+about pagination.
+
+## Correctness
+API signature is true
+to its task, and the input and output are sufficient to satisfy the question’s
+requirements.
+
+## Focus on the Core
+For a given API, focus on the input, output, and signature name. Don’t focus on
+a protobuf and RESTul schema since that’s not the core of the question and is
+pretty wasteful. Only focus on it if the interviewer directly asks for RESTful
+design.
+

@@ -41,3 +41,6 @@ get a user super angry
 a driver’s location for a moment in time because we will get their location for
 their next update in the next few seconds. So losing location data wouldn’t
 result in many impacts on the underlying system.
+
+**Idempotency**
+ : An API call or operation is idempotent if it has the same result no matter how many times it's applied
