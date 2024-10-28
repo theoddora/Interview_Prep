@@ -26,6 +26,8 @@ search does not need to be updated often.
 
 
 **Durability**
+ : Durability is a fundamental property of database systems and distributed systems, particularly in the context of data management and transaction processing. It ensures that once a transaction has been committed, its effects are permanent and will survive any subsequent failures, such as crashes or power outages.
+
 1. High Durability
 : When you’re storing users’ life photos, it is extremely important to be highly
 durable. Losing a photo would mean never being able to see that moment of
