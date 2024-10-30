@@ -1,4 +1,45 @@
 # Glossary
+
+## IPC
+Communication between processes over the network, or inter-
+process communication (IPC)
+
+## Distributed system
+We are concerned with backend applications that run
+on commodity machines and implement some kind of business
+service. A distributed system is a group of
+machines that communicate over network links. However, from a
+run-time point of view, a distributed system is a group of software
+processes that communicate via inter-process communication (IPC)
+mechanisms like HTTP. And from an implementation perspective,
+a distributed system is a group of loosely-coupled components
+(services) that communicate via APIs.
+
+## Service
+A service implements one specific part of the overall system’s capabilities. At the core of a service sits the business logic, which
+exposes interfaces to communicate with the outside world.
+
+## Adapters
+Adapters
+are needed to connect IPC mechanisms to service interfaces.
+
+### Inbound
+An
+inbound adapter is part of the service’s Application Programming
+Interface (API); it handles the requests received from an IPC mechanism, like HTTP, by invoking operations defined in the service
+interfaces.
+
+### Outbound
+Outbound adapters grant the business logic
+access to external services, like data stores.
+
+## Server
+A process running a service
+
+## Client
+A process sending requests to a server
+
+
 > Response Time = Latency + Processing Time
 
 **Response Time**: The time difference between the client sending the request and
@@ -7,6 +48,9 @@ receiving the response.
 **Latency**: The time the request has to wait before it is processed.
 
 **Processing Time**: The time it takes to process the request
+
+**Throughput**: The number of requests processed per second by
+the application
 
 **Data Freshness**:
 1. Real-Time
@@ -46,3 +90,6 @@ result in many impacts on the underlying system.
 
 **Idempotency**
  : An API call or operation is idempotent if it has the same result no matter how many times it's applied
+
+## Bandwidth
+In computer networking, bandwidth refers to the amount of data a network can transmit over a connection in a given amount of time. So just like a co-worker might only have the bandwidth for a certain number of projects, a network only has bandwidth for a limited amount of data. Typically, bandwidth is represented in the number of bits, kilobits, megabits or gigabits that can be transmitted in 1 second. Synonymous with capacity, bandwidth describes data transfer rate. Bandwidth is not a measure of network speed -- a common misconception.
