@@ -58,3 +58,16 @@ Think of topological sort whenever you have a prerequisite chain.
 # Binary Tree BFS 
 
 ## Definition 
+BFS explores all the nodes at the same level in different branches first. To achieve this, we use Queue DS. 
+
+## Example
+- level order traversel in binary tree
+
+# Two pointer 
+
+## Definition
+Two pointer pattern is useful when you need to iterate through a sorted array. Each pointer will keep a track of an index. By moving the pointers smartly we can often solve the problem in a single pass, making the algorithm more efficient. 
+
+## Example 
+- Two sum problem
+- Three sum problem
