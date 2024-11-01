@@ -170,13 +170,127 @@ encryption, authentication, and integrity.
 ## Encryption
 
 Encryption guarantees that the data transmitted between a client
-and a server is obfuscated and can only be read by the communicating processes. When the TLS connection is first opened, the client and the server
+and a server is **obfuscated** and can only be read by the communicating processes. When the TLS connection is first opened, the client and the server
 negotiate a shared encryption secret using asymmetric encryption. 
 
 Although asymmetric encryption is slow and expensive, it’s only
-used to create the shared encryption key. After that, symmetric encryption is used, which is fast and cheap. The shared key is periodically renegotiated to minimize the amount of data that can be
+used to create the **shared encryption key**. After that, symmetric encryption is used, which is fast and cheap. The shared key is periodically renegotiated to minimize the amount of data that can be
 deciphered if the shared key is broken. 
 
 Encrypting in-flight data has a CPU penalty, but it’s negligible
 since modern processors have dedicated cryptographic instructions. Therefore, TLS should be used for all communications,
 even those not going through the public internet.
+
+## Authentication
+
+Although we have a way to obfuscate data transmitted across the
+wire, the client still needs to authenticate the server to verify it’s
+who it claims to be. Similarly, the server might want to authenticate the identity of the client.
+
+TLS implements authentication using digital signatures based on
+asymmetric cryptography. The server generates a key pair with a
+private and a public key and shares its public key with the client.
+When the server sends a message to the client, it signs it with its
+private key. The client uses the server’s public key to verify that
+the digital signature was actually signed with the private key. This
+is possible thanks to mathematical properties3 of the key pair.
+
+The problem with this approach is that the client has no idea
+whether the public key shared by the server is authentic. Hence,
+the protocol uses certificates to prove the ownership of a public
+key. A certificate includes information about the owning entity,
+expiration date, public key, and a digital signature of the third-party entity that issued the certificate. The certificate’s issuing entity is called a certificate authority (CA), which is also represented
+with a certificate. This creates a chain of certificates that ends with
+a certificate issued by a root CA, which
+self-signs its certificate.
+
+For a TLS certificate to be trusted by a device, the certificate, or one
+of its ancestors, must be present in the trusted store of the client.
+Trusted root CAs, such as Let’s Encrypt, are typically included in
+the client’s trusted store by default by the operating system vendor.
+
+When a TLS connection is opened, the server sends the full certificate chain to the client, starting with the server’s certificate and ending with the root CA. The client verifies the server’s certificate
+by scanning the certificate chain until it finds a certificate that it
+trusts. Then, the certificates are verified in reverse order from that
+point in the chain. The verification checks several things, like the
+certificate’s expiration date and whether the digital signature was
+actually signed by the issuing CA. If the verification reaches the
+last certificate in the path (the server’s own certificate) without errors, the path is verified, and the server is authenticated.
+
+One of the most common mistakes when using TLS is letting a
+certificate expire. When that happens, the client won’t be able to
+verify the server’s identity, and opening a connection to the remote process will fail. This can bring an entire application down
+as clients can no longer connect with it. For this reason, automation to monitor and auto-renew certificates close to expiration is
+well worth the investment.
+
+Encryption can generally be applied at different levels. These include:
+- **encryption-at-rest** - data is stored in an encrypted form to prevent unauthorized access. An example would be hard drive encryption. Often managed by the data storage provider. They might handle the encryption keys, which can be accessed internally by authorized personnel.
+- **encryption-in-transit** - data that is transmitted is encrypted before transmission and decrypted after reception to prevent unauthorized access during the transmission. TLS applies encryption-in-transit.
+- **end-to-end encryption** - encrypts data from the true sender to the final recipient such that no other party can access the data. The encryption keys are only available to the sender and receiver, and they have no visibility of each other's keys. Popular in messaging apps, secure emails, and services that prioritize privacy.
+
+### Public Key Infrastructure
+A public key infrastructure (PKI) comprises roles and processes responsible for the management of digital certificates. This include the distribution, creation, and revocation of certificates. 
+
+In public key cryptography, the encryption key is different from the decryption kay, which is why it is also called assymetric encryption. Each participant owns a key pair consistng of a public key that is used for encryption, and a private key or secret key that is used for decryption.
+
+### Certificates 
+The purpose of certificates is to bind public key to an identity. This proves the identity of the public key owner.
+
+The certificate contains information about the subject Most importantly the **Common Name**, which is the domain name the public key belongs to. Additionally, each certificate has an expiry date and needs to be renewed belore it expires to remain valic.
+
+This certificate ensures that when we encrypt a message with the public key, only the server will be able to decrypt it. 
+
+### Certificate Authorities
+
+Certificate authorities (CAs) are entities that are explicitly allowed to issue certificates. They do this by cryptographically signing a certificate. The identity of the CA is proven by a **CA Certificate**. Just like any other cerfificate, CA certificates are signed by another CA. This continues until a root CA is reached. The chain from the root CA to the end-user's certificate is called the **certificate chain**. The root CA's identy is checed against a hardcoded set of trusted CAs in the so-called **certaicate store** to prevent forgery of root CA certificates.
+
+### OpenSSL
+OpenSSL is a robust, open-source toolkit that implements the Secure Sockets Layer (SSL) and Transport Layer Security (TLS) protocols, as well as a powerful library for a wide variety of cryptographic functions. It is widely used to secure data in transit (such as HTTPS connections) and to perform various cryptographic tasks, like encryption, decryption, and key generation.
+
+## Integrity
+Even if the data is obfuscated, a middleman could still tamper
+with it; for example, random bits within the messages could be
+swapped. To protect against tampering, TLS verifies the integrity
+of the data by calculating a message digest. A secure hash function
+is used to create a message authentication code (HMAC). When a
+process receives a message, it recomputes the digest of the message
+and checks whether it matches the digest included in the message.
+If not, then the message has either been corrupted during transmission or has been tampered with. In this case, the message is
+dropped.
+
+The TLS HMAC protects against data corruption as well, not just
+tampering. You might be wondering how data can be corrupted if
+TCP is supposed to guarantee its integrity. While TCP does use a
+checksum to protect against data corruption, it’s not 100% reliable: it fails to detect errors for roughly 1 in 16 million to 10 billion pack-
+ets. With packets of 1 KB, this is expected to happen once per 16
+GB to 10 TB transmitted.
+
+## Handshake
+When a new TLS connection is established, a handshake between
+the client and server occurs during which:
+
+1. The parties agree on the cipher suite to use. A cipher suite
+specifies the different algorithms that the client and the
+server intend to use to create a secure channel, like the:
+   *  key exchange algorithm used to generate shared
+secrets;
+   *  signature algorithm used to sign certificates;
+   *  symmetric encryption algorithm used to encrypt the application data;
+   *  HMAC algorithm used to guarantee the integrity and
+authenticity of the application data.
+
+2. The parties use the key exchange algorithm to create a shared
+secret. The symmetric encryption algorithm uses the shared
+secret to encrypt communication on the secure channel going
+forward.
+3. The client verifies the certificate provided by the server. The
+verification process confirms that the server is who it says it
+is. If the verification is successful, the client can start sending encrypted application data to the server. The server can
+optionally also verify the client certificate if one is available.
+These operations don’t necessarily happen in this order, as modern
+implementations use several optimizations to reduce round trips.
+For example, the handshake typically requires 2 round trips with
+TLS 1.2 and just one with TLS 1.3. The bottom line is that creating a
+new connection is not free: yet another reason to put your servers
+geographically closer to the clients and reuse connections when
+possible.
