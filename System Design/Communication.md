@@ -294,3 +294,67 @@ TLS 1.2 and just one with TLS 1.3. The bottom line is that creating a
 new connection is not free: yet another reason to put your servers
 geographically closer to the clients and reuse connections when
 possible.
+
+# Discovery
+To create a new connection with a remote process, we must
+first discover its IP address somehow. The most common way of
+doing that is via the phone book of the internet: the Domain Name
+System (DNS) — a distributed, hierarchical, and eventually con-
+sistent key-value store.
+
+When
+you enter a URL in your browser, the first step is to resolve the
+hostname’s IP address, which is then used to open a new TLS connection.
+DNS resolution:
+1. The browser checks its local cache to see whether it has resolved the hostname before. If so, it returns the cached IP
+address; otherwise, it routes the request to a DNS resolver, a server typically hosted by your Internet Service Provider (ISP).
+
+2. The resolver is responsible for iteratively resolving the hostname for its clients. The reason why it’s iterative will become
+obvious in a moment. The resolver first checks its local cache
+for a cached entry, and if one is found, it’s returned to the
+client. If not, the query is sent to a root name server (root NS).
+
+3. The root name server maps the top-level domain (TLD) of the
+request, i.e., .com, to the address of the name server responsible for it.
+The resolver sends a resolution request for example.com to the
+TLD name server.
+The TLD name server maps the example.com domain name to
+the address of the authoritative name server responsible for the
+domain.
+Finally, the resolver queries the authoritative name server for
+www.example.com, which returns the IP address of the www
+hostname.
+
+If the query included a subdomain of example.com, like
+news.example.com, the authoritative name server would have
+returned the address of the name server responsible for the
+subdomain, and an additional request would be required.
+
+The original DNS protocol sent plain-text messages primarily over
+UDP for efficiency reasons. However, because this allows any-
+one monitoring the transmission to snoop, the industry has mostly
+moved to secure alternatives, such as DNS on top of TLS.
+
+The resolution process involves several round trips in the worst
+case, but its beauty is that the address of a root name server is
+all that’s needed to resolve a hostname. That said, the resolution
+would be slow if every request had to go through several name server lookups. Not only that, but think of the scale required for
+the name servers to handle the global resolution load. So caching
+is used to speed up the resolution process since the mapping of domain names to IP addresses doesn’t change often — the browser,
+operating system, and DNS resolver all use caches internally.
+
+How do these caches know when to expire a record? Every DNS
+record has a time to live (TTL) that informs the cache how long the
+entry is valid for. But there is no guarantee that clients play nicely
+and enforce the TTL. So don’t be surprised when you change a
+DNS entry and find out that a small number of clients are still trying to connect to the old address long after the TTL has expired.
+
+Setting a TTL requires making a tradeoff. If you use a long TTL,
+many clients won’t see a change for a long time. But if you set it too
+short, you increase the load on the name servers and the average
+response time of requests because clients will have to resolve the
+hostname more often.
+
+If your name server becomes unavailable for any reason, then the smaller the record’s TTL is, the higher the number of clients impacted will be. DNS can easily become a single point of failure —
+if your DNS name server is down and clients can’t find the IP address of your application, they won’t be able to connect it. This can
+lead to massive outages.
