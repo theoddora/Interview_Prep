@@ -93,3 +93,22 @@ result in many impacts on the underlying system.
 
 ## Bandwidth
 In computer networking, bandwidth refers to the amount of data a network can transmit over a connection in a given amount of time. So just like a co-worker might only have the bandwidth for a certain number of projects, a network only has bandwidth for a limited amount of data. Typically, bandwidth is represented in the number of bits, kilobits, megabits or gigabits that can be transmitted in 1 second. Synonymous with capacity, bandwidth describes data transfer rate. Bandwidth is not a measure of network speed -- a common misconception.
+
+## (CIA) triad
+
+The CIA triad represents three core principles in information security, and each of these principles plays a distinct yet interconnected role in safeguarding data and information systems.
+
+### Authenticity
+It is essential for verifying the identity of users, systems, or entities interacting with information systems. It prevents unauthorized access by ensuring that only legitimate users gain entry.
+
+Technique: authentication mechanism include something you know (e.g., passwords), something you have (e.g., security tokens), or something you are (e.g., bio-metrics).
+
+### Confidentiality
+Sensitive information is kept private and only accessible to authorized individuals or systems. Encryption is a common technique used to achieve confidentiality by ensuring data in a way that makes it unreadable to unauthorized parties.
+
+Technique: Encryption is a common method to achieve confidentiality. By encrypting data, it becomes unreadable to anyone without the proper decryption key.
+
+### Integrity
+It focuses on maintaining the accuracy and consistency of data, preventing unauthorized modifications, and ensuring that data remains trustworthy. Hash functions and digital signatures are commonly used to verify the integrity of data.
+
+Technique: hash functions play a significant role in maintaining integrity. When data is hashed, any change to the data results in a different hash value.
