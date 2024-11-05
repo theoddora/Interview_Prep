@@ -39,19 +39,6 @@ A process running a service
 ## Client
 A process sending requests to a server
 
-
-> Response Time = Latency + Processing Time
-
-**Response Time**: The time difference between the client sending the request and
-receiving the response.
-
-**Latency**: The time the request has to wait before it is processed.
-
-**Processing Time**: The time it takes to process the request
-
-**Throughput**: The number of requests processed per second by
-the application
-
 **Data Freshness**:
 1. Real-Time
 : A stock trader sitting at home needs the data to be real-time because a delay in
@@ -94,21 +81,110 @@ result in many impacts on the underlying system.
 ## Bandwidth
 In computer networking, bandwidth refers to the amount of data a network can transmit over a connection in a given amount of time. So just like a co-worker might only have the bandwidth for a certain number of projects, a network only has bandwidth for a limited amount of data. Typically, bandwidth is represented in the number of bits, kilobits, megabits or gigabits that can be transmitted in 1 second. Synonymous with capacity, bandwidth describes data transfer rate. Bandwidth is not a measure of network speed -- a common misconception.
 
+## Fault tolerance
+Fault tolerance is the ability of a system to continue operating properly even when some of its components fail. It involves building systems with redundancy and mechanisms that allow for graceful handling of faults or errors, minimizing downtime and preventing complete failure. Fault tolerance is essential for critical applications where uptime and reliability are crucial, such as in finance, healthcare, telecommunications, and cloud services.
+
+## Availability 
+Availability (also known as service availability) is both a commonly used metric to quantitatively measure resiliency, as well as a target resiliency objective.
+
+> Availability is the percentage of time that a workload is available for use.
+
+Available for use means that it performs its agreed function successfully when required.
+
+This percentage is calculated over a period of time, such as a month, year, or trailing three years. Applying the strictest possible interpretation, availability is reduced anytime that the application isn’t operating normally, including both scheduled and unscheduled interruptions. We define availability as follows:
+
+Availability = (available for use time) / (total time)
+
+* Availability is a percentage uptime (such as 99.9%) over a period of time (commonly a month or year)
+* Common short-hand refers only to the “number of nines”; for example, “five nines” translates to being 99.999% available
+
+| **Availability** | **Maximum Unavailability (per year)** | **Application Categories**                          |
+|------------------|---------------------------------------|----------------------------------------------------|
+| 99%              | 3 days 15 hours                      | Batch processing, data extraction, transfer, and load jobs |
+| 99.9%            | 8 hours 45 minutes                   | Internal tools like knowledge management, project tracking |
+| 99.95%           | 4 hours 22 minutes                   | Online commerce, point of sale                      |
+| 99.99%           | 52 minutes                           | Video delivery, broadcast workloads                |
+| 99.999%          | 5 minutes                            | ATM transactions, telecommunications workloads     |
+
+Measuring availability based on requests. For your service it may be easier to count successful and failed requests instead of “time available for use”. In this case the following calculation can be used:
+
+Availability = (Successful responses) / (Valid requests)
+
+This is often measured for one-minute or five-minute periods. Then a monthly uptime percentage (time-base availability measurement) can be calculated from the average of these periods. If no requests are received in a given period it is counted at 100% available for that time.
+
+**Calculating availability with hard dependencies.** Many systems have hard dependencies on other systems, where an interruption in a dependent system directly translates to an interruption of the invoking system. This is opposed to a soft dependency, where a failure of the dependent system is compensated for in the application. Where such hard dependencies occur, the invoking system’s availability is the product of the dependent systems’ availabilities. For example, if you have a system designed for 99.99% availability that has a hard dependency on two other independent systems that each are designed for 99.99% availability, the workload can theoretically achieve 99.97% availability:
+
+Availinvok × Availdep1 × Availdep2 = Availworkload
+
+99.99% × 99.99% × 99.99% = 99.97%
+
+It’s therefore important to understand your dependencies and their availability design goals as you calculate your own.
+
+## Latency
+
+> Response Time = Latency + Processing Time
+
+**Response Time**: The time difference between the client sending the request and
+receiving the response.
+
+**Latency**: The time the request has to wait before it is processed.
+
+**Processing Time**: The time it takes to process the request
+
+**Throughput**: The number of requests processed per second by
+the application. In short, throughput is about maximizing how much work a system can complete within a set period, and it's crucial for systems that need to handle large volumes of data or transactions, such as online services, high-traffic websites, and streaming platforms.
+
+| **System**              | **Throughput Measure**           | **Example**                                        |
+|-------------------------|----------------------------------|----------------------------------------------------|
+| Web Server              | Requests per second (RPS)       | 10,000 requests per second                         |
+| Database                | Transactions per second (TPS)   | 1,500 transactions per second                      |
+| Network                 | Bits per second (bps)           | 500 Mbps                                           |
+| Data Processing System  | Records per hour                | 100 million records per hour                       |
+| Message Queue           | Messages per second             | 50,000 messages per second                         |
+
+
+In short, latency is about how fast a system responds, while availability is about how reliably a system stays up and accessible. A system can be highly available (always accessible) but have high latency (slow response), or it could have low latency (quick response) but low availability (frequent downtime). Balancing both is crucial for many applications.
+
+| **Aspect**            | **Latency**                                 | **Availability**                                   |
+|-----------------------|---------------------------------------------|----------------------------------------------------|
+| **What it measures**  | Time delay for processing requests          | Percentage of uptime over a given period           |
+| **Focus**             | Speed and responsiveness                    | Reliability and uptime                             |
+| **Example Metric**    | Milliseconds for a round-trip request       | Percentage (e.g., 99.99%) of operational time      |
+| **Priority for**      | Real-time applications (e.g., gaming, streaming) | High-demand applications (e.g., banking, cloud services) |
+| **Optimization Goal** | Reducing response time                      | Increasing uptime and handling failures gracefully |
+
+
+
 ## (CIA) triad
 
-The CIA triad represents three core principles in information security, and each of these principles plays a distinct yet interconnected role in safeguarding data and information systems.
+The CIA triad is a fundamental model in information security, representing the three core principles that guide efforts to protect data and systems. Each letter in "CIA" stands for a distinct principle:
 
-### Authenticity
-It is essential for verifying the identity of users, systems, or entities interacting with information systems. It prevents unauthorized access by ensuring that only legitimate users gain entry.
+### Availability
+Ensures that information and systems are accessible to authorized users when needed. 
 
-Technique: authentication mechanism include something you know (e.g., passwords), something you have (e.g., security tokens), or something you are (e.g., bio-metrics).
+Techniques: 
+* Redundant Systems: Uses multiple backup systems to ensure that resources are available even if one system fails (e.g., multiple servers, data centers).
+* Load Balancing: Distributes workloads across multiple systems to prevent overloading and maintain smooth performance.
+* Backup and Recovery: Creates and maintains copies of data so it can be restored if lost (e.g., periodic data backups, disaster recovery plans).
+* DDoS Protection: Mitigates Distributed Denial of Service attacks that aim to make services unavailable by overwhelming them with requests.
+* Regular Maintenance and Patching: Ensures systems are up-to-date and secure, reducing the risk of downtime due to vulnerabilities.
 
 ### Confidentiality
 Sensitive information is kept private and only accessible to authorized individuals or systems. Encryption is a common technique used to achieve confidentiality by ensuring data in a way that makes it unreadable to unauthorized parties.
 
-Technique: Encryption is a common method to achieve confidentiality. By encrypting data, it becomes unreadable to anyone without the proper decryption key.
+Technique:
+* Encryption: Converts data into a coded format (e.g., AES, RSA) that can only be read by authorized parties.
+* Access Controls: Implements restrictions to ensure only authorized users can access specific data (e.g., role-based access control or attribute-based access control).
+* Authentication: Verifies the identity of users (e.g., passwords, multi-factor authentication, biometric verification).
+* Data Masking: Obscures sensitive information to limit its visibility (e.g., showing only the last four digits of a credit card number).
+* Steganography: Hides data within other files (like images) to avoid detection.
 
 ### Integrity
-It focuses on maintaining the accuracy and consistency of data, preventing unauthorized modifications, and ensuring that data remains trustworthy. Hash functions and digital signatures are commonly used to verify the integrity of data.
+Protects data from unauthorized modifications or tampering, ensuring its accuracy and reliability. Mechanisms like hashing, digital signatures, and checksums are used to verify that information remains consistent and unaltered from its original form.
 
-Technique: hash functions play a significant role in maintaining integrity. When data is hashed, any change to the data results in a different hash value.
+Technique: 
+* Hashing: Generates a unique hash for data (e.g., SHA-256) so that any change in the data can be detected.
+* Digital Signatures: Provides a way to verify the authenticity and integrity of messages or documents, often used in combination with public-key encryption.
+* Checksums: Creates a small block of data based on file contents to detect accidental or intentional modifications.
+* Message Authentication Codes (MACs): Uses cryptographic hashing and a secret key to verify data integrity and authenticity.
+* Version Control: Tracks changes to files over time to prevent accidental data loss or unauthorized alterations (e.g., Git for codebases).
