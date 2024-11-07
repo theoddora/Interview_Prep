@@ -188,3 +188,18 @@ Technique:
 * Checksums: Creates a small block of data based on file contents to detect accidental or intentional modifications.
 * Message Authentication Codes (MACs): Uses cryptographic hashing and a secret key to verify data integrity and authenticity.
 * Version Control: Tracks changes to files over time to prevent accidental data loss or unauthorized alterations (e.g., Git for codebases).
+
+# Consistency models
+https://jepsen.io/consistency/models#consistency-models
+
+| Consistency Model                     | Description                                                                                       | Pros                                        | Cons                                      |
+|---------------------------------------|---------------------------------------------------------------------------------------------------|---------------------------------------------|-------------------------------------------|
+| **Linearizability (Single-Copy Atomicity)** | Operations appear instantaneous with real-time ordering.                               | Clear, consistent state                     | High latency in distributed systems       |
+| **Strong Consistency**                | Guarantees all clients see the latest write immediately.                                          | High accuracy, avoids conflicts             | High latency due to synchronization       |
+| **Sequential Consistency**            | All clients see operations in the same sequential order, though not necessarily in real-time.     | Simpler, often faster than strong consistency| Some synchronization still required       |
+| **Causal Consistency**                | Maintains order of causally related operations; unrelated operations may be unordered.            | Good balance of consistency and availability| Complex to implement                      |
+| **Release Consistency**               | Updates propagate on acquire/release synchronization points rather than immediately.              | Efficient with controlled synchronization   | More relaxed consistency outside critical sections |
+| **Read-Your-Writes Consistency**      | Ensures a client’s reads reflect its own previous writes.                                         | Immediate feedback for interactive apps     | No guarantees for other clients           |
+| **Monotonic Read Consistency**        | Ensures clients do not read older versions after seeing newer ones.                               | Logical read progression                    | Requires version tracking                 |
+| **Eventual Consistency**              | Ensures all replicas converge to the same state eventually, but reads may be stale initially.     | High availability, low latency              | Temporary inconsistency                   |
+
