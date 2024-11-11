@@ -1081,3 +1081,327 @@ resulting in data loss. In COPS’ case, this tradeoff is considered
 acceptable to avoid paying the price of waiting for one or more
 long-distance requests to remote replicas before acknowledging a
 client write.
+
+# Transactions
+Transactions provide the illusion that either all the operations
+within a group complete successfully or none of them do, as if
+the group were a single atomic operation. 
+
+If your application exclusively updates data within a single relational database, then bundling some changes into a transaction is
+straightforward. On the other hand, if your system needs to atom-
+ically update data that resides in multiple data stores, the operations need to be wrapped into a distributed transaction, which is a
+lot more challenging to implement. 
+
+## ACID
+In a traditional relational database, a transaction is a group of
+operations for which the database guarantees a set of properties,
+known as ACID:
+
+* Atomicity guarantees that partial failures aren’t possible;
+either all the operations in the transactions complete suc-
+cessfully, or none do. So if a transaction begins execution
+but fails for whatever reason, any changes it made must be
+undone. This needs to happen regardless of whether the
+transaction itself failed (e.g., divide by zero) or the database
+crashed mid way.
+* Consistency guarantees that the application-level invariants
+must always be true. In other words, a transaction can only
+transition a database from a correct state to another correct
+state. How this is achieved is the responsibility of the application developer who defines the transaction. Confusingly, the “C” in ACID
+has nothing to do with the consistency models.
+* Isolation guarantees that a transaction appears to run in isolation as if no other transactions are executing, i.e., the concurrent execution of transactions doesn’t cause any race conditions.
+* Durability guarantees that once the database commits the
+transaction, the changes are persisted on durable storage so
+that the database doesn’t lose the changes if it subsequently
+crashes. In the way I described it, it sounds like the job is
+done once the data is persisted to a storage device. But, we
+know better by now, and replication is required to ensure
+durability in the presence of storage failures.
+
+## Isolation
+The easiest way to guarantee that no transaction interferes with another is to run them serially one after another (e.g., using a global
+lock). But, of course, that would be extremely inefficient, which is
+why in practice transactions run concurrently. However, a group
+of concurrently running transactions accessing the same data can
+run into all sorts of **race conditions**:
+• A *dirty write* happens when a transaction overwrites the
+value written by another transaction that hasn’t committed
+yet.
+• A *dirty read* happens when a transaction observes a write
+from a transaction that hasn’t completed yet.
+• A *fuzzy read* happens when a transaction reads an object’s
+value twice but sees a different value in each read because another transaction updated the value between the two reads.
+• A *phantom read* happens when a transaction reads a group
+of objects matching a specific condition, while another transaction concurrently adds, updates, or deletes objects matching the same condition. For example, if one transaction is
+summing all employees’ salaries while another deletes some
+employee records simultaneously, the final sum will be incorrect at commit time.
+
+To protect against these race conditions, a transaction needs to be
+isolated from others. An isolation level protects against one or more
+types of race conditions and provides an abstraction that we can
+use to reason about concurrency. The stronger the isolation level
+is, the more protection it offers against race conditions, but the less
+performant it is.
+
+| Isolation Level      | Guarantees                                      | Stronger Isolation |
+|----------------------|-------------------------------------------------|---------------------|
+| Serializable         | Forbids phantom reads                           | ↑                   |
+| Repeatable Read      | Forbids fuzzy reads                             | ↑                   |
+| Read Committed       | Forbids dirty reads                             | ↑                   |
+| Read Uncommitted     | Forbids dirty writes                            | ↑                   |
+| No Guarantees        | No guarantees                                   |                     |
+
+Serializability is the only isolation level that isolates against all possible race conditions. It guarantees that executing a group of transactions has the same side effects as if the transactions run serially
+(one after another) in some order. For example, suppose we have
+two concurrent transactions, X and Y, and transaction X commits
+before transaction Y. A serializable system guarantees that even
+though their operations are interleaved, they appear to run after
+the other, i.e., X before Y or Y before X (even if Y committed after!). To add a real-time requirement on the order of transactions,
+we need a stronger isolation level: **strict serializability**. This level
+combines serializability with the real-time guarantees of linearizability so that when a transaction completes, its side effects become
+immediately visible to all future transactions.
+
+(Strict) serializability is slow as it requires coordination, which creates contention in the system. For example, a transaction may be
+forced to wait for other transactions. In some cases, it may even
+be forced to abort because it can no longer be executed as part of
+a serializable execution. Because not all applications require the
+guarantees that serializability provides, data stores allow developers to use weaker isolation levels. As a rule of thumb, we need to
+consciously decide which isolation level to use and understand its
+implications, or the data store will silently make that decision for
+us; for example, PostgreSQL’s default isolation is read committed.
+So, if in doubt, choose strict serializability.
+
+There are more isolation levels and race conditions. Jepsen provides a good formal reference for
+the existing isolation levels, how they relate to one another, and
+which guarantees they offer. Although vendors typically docu-
+ment the isolation levels of their products, these specifications
+don’t always match the formal definitions.
+
+Now that we know what serializability is, the challenge becomes
+maximizing concurrency while still preserving the appearance of
+serial execution. The concurrency strategy is defined by a *concurrency control protocol*, and there are two categories of protocols that
+guarantee serializability: pessimistic and optimistic.
+
+### Concurrency control
+
+#### Pessimistic
+A *pessimistic* protocol uses locks to block other transactions from accessing an object. The most commonly used protocol is *two-phase
+locking* (2PL). 2PL has two types of locks, one for reads and one for
+writes. A read lock can be shared by multiple transactions that access the object in read-only mode, but it blocks transactions trying
+to acquire a write lock. A write lock can be held only by a single
+transaction and blocks anyone trying to acquire either a read or
+write lock on the object. The locks are held by a *lock manager* that
+keeps track of the locks granted so far, the transactions that acquired them, and the transactions waiting for them to be released.
+
+There are two phases in 2PL, an expanding phase and a shrinking
+one. In the expanding phase, the transaction is allowed only to acquire locks but not release them. In the shrinking phase, the transaction is permitted only to release locks but not acquire them. If
+these rules are obeyed, it can be formally proven that the protocol
+guarantees strict serializability. In practice, locks are only released
+when the transaction completes (aka strict 2PL). This ensures that
+data written by an uncommitted transaction X is locked until it’s
+committed, preventing another transaction Y from reading it and
+consequently aborting if X is aborted (aka *cascading abort*), resulting in wasted work.
+
+Unfortunately, with 2PL, it’s possible for two or more transactions
+to *deadlock* and get stuck. For example, if transaction X is waiting
+for a lock that transaction Y holds, and transaction Y is waiting for
+a lock granted to transaction X, then the two transactions won’t
+make any progress. A general approach to deal with deadlocks is
+to detect them after they occur and select a “victim” transaction to
+abort and restart to break the deadlock.
+
+#### Optimistic
+
+In contrast to a pessimistic protocol, an *optimistic* protocol optimistically executes a transaction without blocking based on the assumption that conflicts are rare and transactions are short-lived. *Optimistic concurrency control*(OCC) is arguably the best-known
+protocol in the space. In OCC, a transaction writes to a local
+workspace without modifying the actual data store. Then, when
+the transaction wants to commit, the data store compares the transaction’s workspace to see whether it conflicts with the workspace
+of another running transaction. This is done by assigning each
+transaction a timestamp that determines its serializability order.
+If the validation succeeds, the content of the local workspace is
+copied to the data store. If the validation fails, the transaction is
+aborted and restarted.
+
+It’s worth pointing out that OCC uses *locks* to guarantee mutual
+exclusion on internal shared data structures. These *physical* locks
+are held for a short duration and are unrelated to the *logical* locks
+we discussed earlier in the context of 2PL. For example, during the
+validation phase, the data store has to acquire locks to access the
+workspaces of the running transactions to avoid race conditions.
+In the database world, these locks are also referred to as *latches* to
+distinguish them from logical locks.
+
+Optimistic protocols avoid the overhead of pessimistic protocols,
+such as acquiring locks and managing deadlocks. As a result, these
+protocols are well suited for read-heavy workloads that rarely perform writes or workloads that perform writes that only occasionally conflict with each other. On the other hand, pessimistic protocols are more efficient for conflict-heavy workloads since they
+avoid wasting work.
+
+### MVCC
+
+Taking a step back, both the optimistic and pessimistic protocols
+discussed this far aren’t optimal for read-only transactions. In 2PC,
+a read-only transaction might wait for a long time to acquire a
+shared lock. On the other hand, in OCC, a read-only transaction
+may be aborted because the value it read has been overwritten.
+Generally, the number of read-only transactions is much higher
+than the number of write transactions, so it would be ideal if a
+read-only transaction could never block or abort because of a conflict with a write transaction.
+
+*Multi-version concurrency control* (MVCC) delivers on that premise
+by maintaining older versions of the data. Conceptually, when a
+transaction writes an object, the data store creates a new version of
+it. And when the transaction reads an object, it reads the newest
+version that existed when the transaction started. This mechanism
+allows a read-only transaction to read an immutable and consistent snapshot of the data store without blocking or aborting due
+to a conflict with a write transaction. However, for write transactions, MVCC falls back to one of the concurrency control protocols
+we discussed before (i.e., 2PL or OCC). Since generally most transactions are read-only, this approach delivers major performance
+improvements, which is why MVCC is the most widely used con-
+currency control scheme nowadays.
+
+For example, when MVCC is combined with 2PL, a write transaction uses 2PL to access any objects it wants to read or write so
+that if another transaction tries to update any of them, it will block.
+When the transaction is ready to commit, the transaction manager
+gives it an unique commit timestamp 𝑇 𝐶𝑖, which is assigned to all
+new versions the transaction created. Because only a single transaction can commit at a time, this guarantees that once the transaction commits, a read-only transaction whose start timestamp 𝑇 𝑆𝑗
+is greater than or equal to the commit timestamp of the previous
+transaction (𝑇 𝑆𝑗 ≥ 𝑇 𝐶𝑖), will see all changes applied by the previous transaction. This is a consequence of the protocol allowing
+read-only transactions to read only the newest committed version
+of an object that has a timestamp less than or equal 𝑇 𝑆𝑗. Thanks
+to this mechanism, a read-only transaction can read an immutable
+and consistent snapshot of the data store without blocking or aborting due to a conflict with a write transaction.
+
+That said, there is a limited form of OCC at the level of individual
+objects that is widely used in distributed applications and that you
+should know how to implement. The protocol assigns a version
+number to each object, which is incremented every time the object
+is updated. A transaction can then read a value from a data store,
+do some local computation, and finally update the value conditional on the version of the object not having changed. This validation step can be performed atomically using a compare-and-swap
+operation, which is supported by many data stores. For example,
+if a transaction reads version 42 of an object, it can later update
+the object only if the version hasn’t changed. So if the version is
+the same, the object is updated and the version number is incremented to 43 (atomically). Otherwise, the transaction is aborted
+and restarted.
+
+## Atomicity
+When executing a transaction, there are two possible outcomes: it
+either commits after completing all its operations or aborts due to
+a failure after executing some operations. When a transaction is
+aborted, the data store needs to guarantee that all the changes the
+transaction performed are undone (rolled back).
+
+To guarantee atomicity (and also durability), the data store records
+all changes to a write-ahead log (WAL) persisted on disk before
+applying them. Each log entry records the identifier of the transaction making the change, the identifier of the object being modified,
+and both the old and new value of the object. Most of the time,
+the database doesn’t read from this log at all. But if a transaction
+is aborted or the data store crashes, the log contains enough information to redo changes to ensure atomicity and durability and undo changes in case of a failure during a transaction execution.
+
+Unfortunately, this WAL-based recovery mechanism only guaran-
+tees atomicity within a single data store. 
+
+### Two-phase commit
+*Two-phase commit* (2PC) is a protocol used to implement atomic
+transaction commits across multiple processes. The protocol is
+split into two phases, *prepare* and *commit*. It assumes a process acts
+as *coordinator* and orchestrates the actions of the other processes,
+called *participants*. For example, the client application that initiates
+the transaction could act as the coordinator for the protocol.
+
+When a coordinator wants to commit a transaction, it sends a
+*prepare* request asking the participants whether they are prepared
+to commit the transaction. If all participants
+reply that they are ready to commit, the coordinator sends a
+*commit* request to all participants ordering them to do so. In
+contrast, if any process replies that it’s unable to commit or
+doesn’t respond promptly, the coordinator sends an *abort* request
+to all participants.
+
+There are two points of no return in the protocol. If a participant
+replies to a prepare message that it’s ready to commit, it will have
+to do so later, no matter what. The participant can’t make progress
+from that point onward until it receives a message from the coordinator to either commit or abort the transaction. This means that if the coordinator crashes, the participant is stuck.
+
+The other point of no return is when the coordinator decides to
+commit or abort the transaction after receiving a response to its prepare message from all participants. Once the coordinator makes
+the decision, it can’t change its mind later and has to see the trans-
+action through to being committed or aborted, no matter what. If
+a participant is temporarily down, the coordinator will keep retrying until the request eventually succeeds.
+
+Two-phase commit has a mixed reputation. It’s slow since it requires multiple round trips for a transaction to complete, and if
+either the coordinator or a participant fails, then all processes part
+of the transactions are blocked until the failing process comes back
+online. On top of that, the participants need to implement the protocol; you can’t just take two different data stores and expect them to play ball with each other.
+
+If we are willing to increase the complexity of the protocol, we can
+make it more resilient to failures by replicating the state of each process involved in the transaction. For example, replicating the coordinator with a consensus protocol like Raft makes 2PC resilient to
+coordinator failures. Similarly, the participants can also be replicated.
+
+As it turns out, atomically committing a transaction is a form of
+consensus, called *uniform consensus*, where all the processes have
+to agree on a value, even the faulty ones. In contrast, the general
+form of consensus introduced before only guarantees that
+all non-faulty processes agree on the proposed value. Therefore,
+uniform consensus is actually harder than consensus. Nevertheless, as mentioned earlier, general consensus can be used to replicate the state of each process and make the overall protocol more
+robust to failures.
+
+## NewSQL
+As a historical side note, the first versions of modern large-scale
+data stores that came out in the late 2000s used to be referred to
+as *NoSQL* stores since their core features were focused entirely
+on scalability and lacked the guarantees of traditional relational
+databases, such as ACID transactions. But in recent years, that
+has started to change as distributed data stores have continued to
+add features that only traditional databases offered.
+
+Arguably one of the most successful implementations of a
+NewSQL data store is Google’s Spanner. At a high level, Spanner breaks data (key-value pairs) into partitions in order to scale.
+Each partition is replicated across a group of nodes in different
+data centers using a state machine replication protocol (Paxos).
+
+In each replication group, there is one specific node that acts as the
+leader, which handles a client write transaction for that partition by
+first replicating it across a majority of the group and then applying
+it. The leader also serves as a lock manager and implements 2PL
+to isolate transactions modifying the partition from each other.
+
+To support transactions that span multiple partitions, Spanner implements 2PC. A transaction is initiated by a client and coordinated by one of the group leaders of the partitions involved. All
+the other group leaders act as participants of the transaction.
+
+The coordinator logs the transaction’s state into a local write-ahead
+log, which is replicated across its replication group. That way,
+if the coordinator crashes, another node in the replication group
+is elected as the leader and resumes coordinating the transaction.
+Similarly, each participant logs the transaction’s state in its log,
+which is also replicated across its group. So if the participant fails,
+another node in the group takes over as the leader and resumes
+the transaction.
+
+To guarantee isolation between transactions, Spanner uses MVCC
+combined with 2PL. Thanks to that, read-only transactions are
+lock-free and see a consistent snapshot of the data store. In
+contrast, write transactions use two-phase locking to create
+new versions of the objects they change to guarantee strict
+serializability.
+
+Each transaction is assigned a unique timestamp. While it’s easy to do that on a single machine, it’s a lot more
+challenging in a distributed setting since clocks aren’t perfectly
+synchronized. Although we could use a centralized timestamp
+service that allocates unique timestamps to transactions, it would
+become a scalability bottleneck. To solve this problem, Spanner
+uses physical clocks that, rather than returning precise timestamps, return uncertainty intervals [𝑡𝑒𝑎𝑟𝑙𝑖𝑒𝑠𝑡, 𝑡𝑙𝑎𝑡𝑒𝑠𝑡] that take
+into account the error boundary of the measurements, where
+𝑡𝑒𝑎𝑟𝑙𝑖𝑒𝑠𝑡 ≤ 𝑡𝑟𝑒𝑎𝑙 ≤ 𝑡𝑙𝑎𝑡𝑒𝑠𝑡. So although a node doesn’t know the current physical time 𝑡𝑟𝑒𝑎𝑙, it knows it’s within the interval with a
+very high probability.
+
+Conceptually, when a transaction wants to commit, it’s assigned
+the 𝑡𝑙𝑎𝑡𝑒𝑠𝑡 timestamp of the interval returned by the transaction
+coordinator’s clock. But before the transaction can commit and release the locks, it waits for a duration equal to the uncertainty period (𝑡𝑙𝑎𝑡𝑒𝑠𝑡−𝑡𝑒𝑎𝑟𝑙𝑖𝑒𝑠𝑡). The waiting time guarantees that any transaction that starts after the previous transaction committed sees the
+changes applied by it. Of course, the challenge is to keep the uncertainty interval as small as possible in order for the transactions to
+be fast. Spanner does this by deploying GPS and atomic clocks in
+every data center and frequently synchronizing the quartz clocks of the nodes with them. Other systems inspired by Spanner,
+like CockroachDB, take a different approach and rely instead on
+hybrid-logical clocks which are composed of a physical timestamp
+and a logical timestamp.
+
+# Asynchronous transactions
+
