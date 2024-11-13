@@ -13,8 +13,38 @@ Instead of Brute force approach where you might check every combination of eleme
 Each are used for different types of problems.  
 
 ### Example 
-- Two sum problem
+- Two sum problem - Find two numbers in a sorted array that add up to a given target.
 - Three sum problem
+- Palindrome Check: Check if a given string is a palindrome by comparing characters from both ends.
+
+### All sub-patterns of two-pointers:
+https://www.youtube.com/watch?v=4EDiy-jbPaE
+
+#### Approaching pointers
+**Pattern**: Start with two pointers: one at the beginning of the array (or string) and the other at the end. Move them towards each other based on certain conditions until they meet.
+
+Two Sum (Sorted Array) example
+```python
+def two_sum(arr, target):
+    left, right = 0, len(arr) - 1
+    while left < right:
+        current_sum = arr[left] + arr[right]
+        if current_sum == target:
+            return [left, right]
+        elif current_sum < target:
+            left += 1
+        else:
+            right -= 1
+    return None
+```
+
+#### Same Direction
+Pattern: Divide the problem in half and use two pointers to solve each half independently, then combine the results.
+
+
+#### Fast and slow pointers
+ 
+####  Separate pointers
 
 ## Sliding Window
 
