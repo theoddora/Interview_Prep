@@ -304,3 +304,80 @@ The main drawback of hash partitioning compared to range partitioning is that th
 required to efficiently scan all the data in order. However, the data
 within an individual partition can still be sorted based on a secondary key.
 
+# File storage
+But there are only so many images, videos, etc., the server can store on its local disk(s) before
+running out of space. To work around this limit, we can use a managed file store, like AWS S3 or Azure Blob Storage, to store large
+static files. Managed file stores are scalable, highly available, and
+offer strong durability guarantees. A file uploaded to a managed
+store can be configured to allow access to anyone who knows its
+URL, which means we can point the CDN straight at it. This allows
+us to completely offload the storage and serving of static resources
+to managed services.
+
+## Blob storage architecture
+Because distributed file stores are such a crucial component of
+modern applications, it’s useful to have an idea of how they work
+underneath. We will dive into the architecture  of Azure Storage (AS), a scalable cloud storage system that provides
+strong consistency. AS supports file, queue, and table abstractions,
+but for simplicity, our discussion will focus exclusively on the file
+abstraction, also referred to as the blob store.
+
+AS is composed of storage clusters distributed across multiple regions worldwide. A storage cluster is composed of multiple racks
+of nodes, where each rack is built out as a separate unit with redundant networking and power.
+
+At a high level, AS exposes a global namespace based on domain
+names that are composed of two parts: an account name and a file
+name. The two names together form a unique URL that points to
+a specific file, e.g., https://ACCOUNT_NAME.blob.core.windows.
+net/FILE_NAME. The customer configures the account name, and
+the AS DNS server uses it to identify the storage cluster where the
+data is stored. The cluster uses the file name to locate the node
+responsible for the data.
+
+A central *location service* acts as the global *control plane* in charge
+of creating new accounts and allocating them to clusters, and also
+moving them from one cluster to another for better load distribution. For example, when a customer wants to create a new account
+in a specific region, the location service:
+* chooses a suitable cluster to which to allocate the account
+based on load information;
+updates the configuration of the cluster to start accepting requests for the new account;
+* and creates a new DNS record that maps the account name
+to the cluster’s public IP address.
+
+From an architectural point of view, a storage cluster is composed
+of three layers: a stream layer, a partition layer, and a front-end
+layer.
+
+The *stream layer* implements a distributed append-only file system
+in which the data is stored in so-called streams. Internally, a *stream* is represented as a sequence of extents, where the extent is the unit
+of replication. Writes to extents are replicated synchronously using
+chain replication.
+
+The *stream manager* is the control plane responsible for assigning
+an extent to a chain of storage servers in the cluster. When the
+manager is asked to allocate a new extent, it replies with the list of
+storage servers that hold a copy of the newly created extent. The client caches this information and uses it to send
+future writes to the primary server. The stream manager is also
+responsible for handling unavailable or faulty extent replicas by
+creating new ones and reconfiguring the replication chains they
+are part of.
+
+The *partition layer* is where high-level file operations are translated to low-level stream operations. Within this layer, the *partition manager* (yet another control plane) manages a large index of all files
+stored in the cluster. Each entry in the index contains metadata
+such as account and file name and a pointer to the actual data in
+the stream service (list of extent plus offset and length). The partition manager range-partitions the index and maps each partition
+to a partition server. The partition manager is also responsible for
+load-balancing partitions across servers, splitting partitions when
+they become too hot, and merging cold ones.
+
+The partition layer also asynchronously replicates accounts across
+clusters in the background. This functionality is used to migrate
+accounts from one cluster to another for load-balancing purposes
+and disaster recovery.
+
+Finally, the *front-end service* (a reverse proxy) is a stateless service
+that authenticates requests and routes them to the appropriate partition server using the mapping managed by the partition manager.
+
+Although we have only coarsely described the architecture of AS,
+it’s a great showcase of the scalability patterns applied to a concrete system. As an interesting historical note, AS was built from
+the ground up to be strongly consistent, while AWS S3 started offering the same guarantee in 2021.

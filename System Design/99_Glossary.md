@@ -203,3 +203,19 @@ https://jepsen.io/consistency/models#consistency-models
 | **Monotonic Read Consistency**        | Ensures clients do not read older versions after seeing newer ones.                               | Logical read progression                    | Requires version tracking                 |
 | **Eventual Consistency**              | Ensures all replicas converge to the same state eventually, but reads may be stale initially.     | High availability, low latency              | Temporary inconsistency                   |
 
+# What is a cluster?
+a cluster is a group of interconnected computers, known as nodes or servers, that work together as a single system to accomplish tasks. Clusters provide enhanced performance, reliability, and scalability compared to single machines, and are widely used in data centers, cloud computing, and high-performance computing environments.
+
+## Key Features of a Cluster
+* Distributed Processing: Tasks are split across multiple nodes, allowing the system to handle larger workloads and process tasks faster.
+* Redundancy and Fault Tolerance: Clusters often provide redundancy, so if one node fails, others can take over to keep the system running.
+* Scalability: By adding more nodes, clusters can scale horizontally, handling more data and processing power without requiring bigger or more powerful individual machines.
+* Load Balancing: Tasks are distributed across nodes, balancing the workload to prevent any single node from being overwhelmed.
+* Shared Storage: Nodes may access shared storage resources, or each node might have its own local storage with data replicated across the cluster.
+
+## Types of Clusters
+* High-Availability (HA) Clusters: Designed to minimize downtime. If one node fails, another takes over to ensure continuous service. Common in mission-critical applications.
+* Load-Balancing Clusters: Distribute incoming requests across nodes to evenly share the workload. Often used in web servers and other applications where large numbers of requests are processed.
+* High-Performance Computing (HPC) Clusters: Designed for compute-intensive tasks, such as scientific simulations and complex calculations. Typically involves powerful nodes working together to complete tasks in parallel.
+* Big Data Clusters: Specialized for data processing tasks, often with frameworks like Hadoop or Spark, to analyze large datasets by distributing the data and processing across nodes.
+* Storage Clusters: Used to manage large amounts of data with high availability and redundancy, common in cloud storage systems.
