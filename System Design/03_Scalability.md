@@ -143,8 +143,7 @@ ms just because of the network latency, which is physically limited
 by the speed of light. Not to mention the increased error rate when
 sending data across the public internet over long distances.
 
-This is why CDN clusters are placed in multiple geographical loca-
-tions to be closer to clients. But how do clients know which cluster
+This is why CDN clusters are placed in multiple geographical locations to be closer to clients. But how do clients know which cluster
 is closest to them? One way is via *global DNS load balancing*: an
 extension to DNS that considers the location of the client inferred
 from its IP, and returns a list of the geographically closest clusters
@@ -167,6 +166,9 @@ The overlay network can also be used to speed up the delivery
 of dynamic resources that cannot be cached. In this capacity, the
 CDN becomes the frontend for the application, shielding it against
 distributed denial-of-service (DDoS) attacks.
+
+### Global load balancing
+Global server load balancing (GSLB) is the practice of distributing web and application traffic across multiple servers in different locations to improve network performance, increase reliability, and achieve high availability. By directing traffic to the least congested servers or to the servers closest to users, GSLB enables faster and more reliable response times for better user experiences.
 
 ## Caching
 A CDN can have multiple content caching layers. The top layer is
@@ -285,8 +287,7 @@ partition needs to be split further by increasing the total number
 of partitions. Alternatively, the key needs to be split into sub-keys
 by, e.g., prepending a random prefix.
 
-Assigning hashes to partitions via the modulo operator can be-
-come problematic when a new partition is added, as most keys
+Assigning hashes to partitions via the modulo operator can become problematic when a new partition is added, as most keys
 have to be moved (or shuffled) to a different partition because their
 assignment changed. Shuffling data is extremely expensive as it
 consumes network bandwidth and other resources. Ideally, if a
@@ -299,6 +300,35 @@ partition identifiers and keys onto a circle, and each key is assigned
 to the closest partition that appears on the circle in clockwise order.
 
 Now, when a new partition is added, only the keys that now map to it on the circle need to be reassigned.
+
+The goal of consistent hashing - we want almost all objects to stay assigned to the same server even as the number of servers changes. 
+
+In addition to hashing the object keys we also add the hash of the server names. The objects and servers are hashed with the same hashing function to the same range of values. 
+A hash space: x0 to xn. We connect both ends of the hash space to form a ring. This is a hash ring. Using a hashing function, we hash each server by its name or IP address and place the server on the ring. Next, we hash each object by its keys with the same hashing function. Unlike simple hashing where we perform a modulo operator on the hash, here we use the hash direclty, to map the object key onto the ring.
+
+To locate the server of a particular object, we go clockwise from the location of the object key onto the ring until a server is found. 
+
+What happens when we add a server (example: s4 before s0)? Only the keys which previously poited to s4 need to be moved to point to s0. Keys up until the new position of s4. 
+
+With simple hashing, when a new server is added, almost all the keys need to be remapped. With consistent hashing, adding a new server only requres redistribution of a fraction of the keys. 
+
+What happens when we remove a server? We remap the keys pointing to that server, to the next one in the ring. 
+
+What happens when the server nodes are distributed unevenly on the ring?  It is unlikely to get a perfect partition of the ring into equal sizes. This problem gets worse if servers come and go frequently. 
+
+Virtual nodes are used to fix this problem. The idea is to have each server appear at multiple locations on the ring. Each location is a virtual node representing a server. With virtual nodes, each server handles multiple segments onto the ring. As the number of virtual nodes increases, the distribution of objects becomes more balanced. Having more virtual nodes means taking up more space to store the metadata about the virtual nodes. This is a trade-off, and we can tune the number of virtual nodes to fit our system requirements. 
+
+| Use Case                      | Description                                                                                                  | Benefits of Consistent Hashing                                                   |
+|-------------------------------|--------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|
+| **Distributed Caching**       | Used in distributed cache systems (e.g., Memcached) to map cache keys to cache servers.                     | Ensures minimal cache reassignments when servers are added/removed, improving cache hit rate. |
+| **Load Balancing**            | In systems with dynamic server pools, such as in microservices or cloud environments.                        | Dynamically distributes load, preventing "hot spots" and minimizing reassignments of tasks.    |
+| **Distributed Databases**     | Databases like Cassandra and DynamoDB use consistent hashing for data partitioning across nodes.             | Facilitates data partitioning, ensuring fault tolerance and even data distribution.            |
+| **Content Delivery Networks** | Maps web content to geographically distributed servers for faster delivery.                                  | Optimizes resource location with minimal redistributions, reducing latency for end-users.      |
+| **Peer-to-Peer Networks**     | Used in P2P networks (e.g., BitTorrent, Chord) to distribute file pieces across peers.                      | Balances file sharing load across peers and simplifies node addition/removal.                 |
+| **Distributed File Systems**  | Systems like Amazon S3 or HDFS use consistent hashing to distribute files across storage nodes.             | Maintains balanced file distribution, reducing data shuffling when scaling storage.           |
+| **Sharded Queues**            | Message queues (e.g., Kafka, RabbitMQ) use it to distribute messages across queue partitions.               | Balances message flow, ensuring minimal re-routing when queue nodes change.                    |
+| **Social Media Platforms**    | Used for user content distribution and follower management (e.g., mapping followers to backend servers).    | Provides efficient scaling and avoids disruption when user volume fluctuates.                  |
+
 
 The main drawback of hash partitioning compared to range partitioning is that the sort order over the partitions is lost, which is
 required to efficiently scan all the data in order. However, the data
@@ -381,3 +411,302 @@ that authenticates requests and routes them to the appropriate partition server 
 Although we have only coarsely described the architecture of AS,
 it’s a great showcase of the scalability patterns applied to a concrete system. As an interesting historical note, AS was built from
 the ground up to be strongly consistent, while AWS S3 started offering the same guarantee in 2021.
+
+# Network load balancing
+Scaling out (horizontally) a stateless application doesn’t require much effort, *assuming* its dependencies can scale accordingly as well. Scaling out a stateful service,
+like a data store, is a lot more challenging since it needs to replicate state and thus requires some form of coordination, which adds
+complexity and can also become a bottleneck. As a general rule of
+thumb, we should try to keep our applications stateless by pushing state to third-party services designed by teams with years of experience building such services.
+
+Distributing requests across a pool of servers has many benefits.
+Because clients are decoupled from servers and don’t need to know
+their individual addresses, the number of servers behind the load
+balancer can increase or decrease transparently. And since multiple redundant servers can interchangeably be used to handle re-
+quests, a load balancer can detect faulty ones and take them out of
+the pool, increasing the availability of the overall application.
+
+Distributing requests across a pool of servers has many benefits.
+Because clients are decoupled from servers and don’t need to know
+their individual addresses, the number of servers behind the load
+balancer can increase or decrease transparently. And since multiple redundant servers can interchangeably be used to handle requests, a load balancer can detect faulty ones and take them out of
+the pool, increasing the availability of the overall application.
+
+The availability of a system is
+the percentage of time it’s capable of servicing requests and doing useful work. Another way of thinking about it is that it’s the
+probability that a request will succeed.
+
+The reason why a load balancer increases the theoretical availability is that in order for the application to be considered unavailable,
+all the servers need to be down. With N servers, the probability
+that they are all unavailable is the product of the servers’ failure
+rates. By subtracting this product from 1, we can determine the
+theoretical availability of the application.
+
+For example, if we have two servers behind a load balancer and
+each has an availability of 99%, then the application has a theoretical availability of 99.99%:
+1 − (0.01 ⋅ 0.01) = 0.9999
+
+Intuitively, the nines of independent servers sum up. Thus, in
+the previous example, we have two independent servers with two
+nines each, for a total of four nines of availability. Of course, this
+number is only theoretical because, in practice, the load balancer
+doesn’t remove faulty servers from the pool immediately. The formula also naively assumes that the failure rates are independent,
+which might not be the case. Case in point: when a faulty server is removed from the load balancer’s pool, the remaining ones might
+not be able to sustain the increase in load and degrade.
+
+## Load balancing
+The algorithms used for routing requests can vary from *round-robin* to *consistent hashing* to ones that take into account the
+servers’ load.
+
+Using cached or otherwise delayed metrics to distribute requests
+to servers can result in surprising behaviors. For example, if a
+server that just joined the pool reports a load of 0, the load balancer will hammer it until the next time its load is sampled. When
+that happens, the server will report that it’s overloaded, and the
+load balancer will stop sending more requests to it. This causes the
+server to alternate between being very busy and not being busy at
+all.
+As it turns out, randomly distributing requests to servers without
+accounting for their load achieves a better load distribution. Does
+that mean that load balancing using delayed load metrics is not
+possible? There is a way, but it requires combining load metrics
+with the power of randomness. The idea is to randomly pick two
+servers from the pool and route the request to the least-loaded one
+of the two. This approach works remarkably well in practice.
+
+### Service discovery
+Service discovery is the mechanism the load balancer uses to discover the pool of servers it can route requests to. A naive way to
+implement it is to use a static configuration file that lists the IP addresses of all the servers, which is painful to manage and keep up
+to date.
+
+A more flexible solution is to have a fault-tolerant coordination
+service, like, e.g., etcd or Zookeeper, manage the list of servers.
+When a new server comes online, it registers itself to the coordination service with a TTL. When the server unregisters itself, or the
+TTL expires because it hasn’t renewed its registration, the server
+is removed from the pool.
+
+Adding and removing servers dynamically from the load
+balancer’s pool is a key functionality cloud providers use to
+implement autoscaling, i.e., the ability to spin up and tear down
+servers based on load.
+
+### Health checks
+A load balancer uses health checks to detect when a server can no
+longer serve requests and needs to be temporarily removed from
+the pool. There are fundamentally two categories of health checks:
+passive and active.
+
+A *passive health check* is performed by the load balancer as it
+routes incoming requests to the servers downstream. If a server
+isn’t reachable, the request times out, or the server returns a
+non-retriable status code (e.g., 503), the load balancer can decide
+to take that server out of the pool.
+
+Conversely, an *active health check* requires support from the downstream servers, which need to expose a dedicated health endpoint
+that the load balancer can query periodically to infer the server’s
+health. The endpoint returns 200 (OK) if the server can serve requests or a 5xx status code if it’s overloaded and doesn’t have more
+capacity to serve requests. If a request to the endpoint times out,it also counts as an error.
+
+The endpoint’s handler could be as simple as always returning 200
+OK, since most requests will time out when the server is degraded.
+Alternatively, the handler can try to infer whether the server is
+degraded by comparing local metrics, like CPU usage, available
+memory, or the number of concurrent requests being served, with
+configurable thresholds.
+
+But here be dragons: if a threshold is misconfigured or the health
+check has a bug, all the servers behind the load balancer may fail
+the health check. In that case, the load balancer could naively
+empty the pool, taking the application down. However, in practice, if the load balancer is “smart enough,” it should detect that a
+large fraction of the servers are unhealthy and consider the health
+checks to be unreliable. So rather than removing servers from thepool, it should ignore the health checks altogether so that new re-quests can be sent to any server.
+
+Thanks to health checks, the application behind the load balancer
+can be updated to a new version without any downtime. During
+the update, a rolling number of servers report themselves as unavailable so that the load balancer stops sending requests to them.
+This allows in-flight requests to complete (drain) before the servers
+are restarted with the new version. More generally, we can use this
+mechanism to restart a server without causing harm.
+
+For example, suppose a stateless application has a rare memory
+leak that causes a server’s available memory to decrease slowly
+over time. When the server has very little physical memory available, it will swap memory pages to disk aggressively. This constant swapping is expensive and degrades the performance of the
+server dramatically. Eventually, the leak will affect the majority of
+servers and cause the application to degrade.
+
+In this case, we could force a severely degraded server to restart.
+That way, we don’t have to develop complex recovery logic when
+a server gets into a rare and unexpected degraded mode. Moreover, restarting the server allows the system to self-heal, giving its operators time to identify the root cause.
+
+To implement this behavior, a server could have a separate background thread — a watchdog — that wakes up periodically and
+monitors the server’s health. For example, the *watchdog* could
+monitor the available physical memory left. When a monitored
+metric breaches a specific threshold for some time, the watchdog
+considers the server degraded and deliberately crashes or restarts
+it.
+
+Of course, the watchdog’s implementation needs to be well-tested
+and monitored since a bug could cause servers to restart continuously. That said, I find it uncanny how this simple pattern can
+make an application a lot more robust to gray failures.
+
+Load balancing algorithms:
+> * Static
+>   * Round robin
+>   * Weighted Round robin
+>   * Sticky Round robin
+>   * Hash 
+>* Dynamic
+>   * Least connection
+>   * Least time 
+
+### Static
+Distribute requests to servers without taking the account of the servers' real-time conditions and performance metrics. The main advantage is simplicity but the downside is less adaptivity and precision. 
+Round robin rotates requests evenly around the servers. It can potentially overload servers if they are not properly monitored. Sticky round robin tries to send subsequent requests from the same user to the same server. The goal is to improve performance by having related data on the same server. But uneven loads can easily occur since newly arriving users are assigned randomly. 
+
+Weighted round robin allows operators to assign different weights or priority to a different server. Servers with higher weights will receive a proportionally higher number of requests. This allows us to account for heterogeneous server capabilities. The downside is that weights must be manually configured, which is less adaptive to real time changes. Hash-based algorithms use a hash function to map incoming requests to the backend servers. The hash function often uses the client's IP address or the requested URL as an input for determining where to route each request. It can evenly distribute requests if the function is chosen wisely. However, selecting an optimal hash function can be challenging. 
+
+### Dynamic
+Adapt in real-time by taking active performance metrics and server conditions into account when distributing requests. Least connections algorithms send each new request to the server currently with the least number of active connections or open requests. This requires actively tracking the number of ongoing connections on each backend server. The advantage is new requests are adaptively routed to where there is most remaining capacity. However, it's possible for load to unintentionally concentrate on certain servers if connections pile up unevenly. Least response time algorithms send incoming requests to the server with the lowest current latency or fastest response time. Latency for each server is continuously measured and factored in. This approach is highly adaptive and reactive. However, requires constant monitoring which incurs significant overhead and introduces complexity. It also doesn't consider how many existing requests each server already has. 
+
+## DNS Load balancing
+It’s important to have a
+basic knowledge of how a load balancer works. Because every request needs to go through it, it contributes to your applications’
+performance and availability.
+
+A simple way to implement a load balancer is with DNS. For example, suppose we have a couple of servers that we would like
+to load-balance requests over. If these servers have public IP addresses, we can add those to the application’s DNS record and
+have the clients pick one when resolving the DNS address.
+
+Although this approach works, it’s not resilient to failures. If one of
+the two servers goes down, the DNS server will happily continue
+to serve its IP address, unaware that it’s no longer available. Even
+if we were to automatically reconfigure the DNS record when a
+failure happens and take out the problematic IP, the change needs time to propagate to the clients, since DNS entries are cached.
+
+The one use case where DNS is used in practice to load-balance is
+for distributing traffic to different data centers located in different
+regions (*global DNS load balancing*). We have already encountered
+a use for this when discussing CDNs.
+
+## Transport layer load balancing
+A more flexible load-balancing solution can be implemented with
+a load balancer that operates at the TCP level of the network stack
+(aka L4 load balancer) through which all the traffic between
+clients and servers flows.
+
+A network load balancer has one or more physical *network interface cards* mapped to one or more *virtual IP* (VIP) addresses. A VIP, in
+turn, is associated with a pool of servers. The load balancer acts
+as an intermediary between clients and servers — clients only see
+the VIP exposed by the load balancer and have no visibility of the
+individual servers associated with it.
+
+When a client creates a new TCP connection with a load balancer’s
+VIP, the load balancer picks a server from the pool and henceforth
+shuffles the packets back and forth for that connection between the
+client and the server. And because all the traffic goes through the
+load balancer, it can detect servers that are unavailable (e.g., with a
+passive health check) and automatically take them out of the pool,
+improving the system’s reliability.
+
+A connection is identified by a tuple (source IP/port, destination
+IP/port). Typically, some form of hashing is used to assign a connection tuple to a server that minimizes the disruption caused by
+a server being added or removed from the pool, like consistent
+hashing.
+
+To forward packets downstream, the load balancer translates each
+packet’s source address to the load balancer’s address and its destination address to the server’s address. Similarly, when the load
+balancer receives a packet from the server, it translates its source
+address to the load balancer’s address and its destination address
+to the client’s address.
+
+As the data going out of the servers usually has a greater volume
+than the data coming in, there is a way for servers to bypass the
+load balancer and respond directly to the clients using a mechanism called direct server return, which can significantly reduce
+the load on the load balancer.
+
+A network load balancer can be built using commodity machines and scaled out using a combination of Anycast and ECMP. Load
+balancer instances announce themselves to the data center’s edge
+routers with the same Anycast VIP and identical BGP weight. Using an Anycast IP is a neat trick that allows multiple machines to
+share the same IP address and have routers send traffic to the one
+with the lowest BGP weight. If all the instances have the same identical BGP weight, routers use equal-cost multi-path routing (con-
+sistent hashing) to ensure that the packets of a specific connection
+are generally routed to the same load balancer instance.
+
+Although load balancing connections at the TCP level is very
+fast, the drawback is that the load balancer is just shuffling bytes
+around without knowing what they actually mean. Therefore,
+L4 load balancers generally don’t support features that require
+higher-level network protocols, like terminating TLS connections.
+A load balancer that operates at a higher level of the network
+stack is required to support these advanced use cases.
+
+## Application layer load balancing
+An application layer load balancer (aka L7 load balancer) is an
+HTTP reverse proxy that distributes requests over a pool of servers.
+The load balancer receives an HTTP request from a client, inspects
+it, and sends it to a backend server.
+
+There are two different TCP connections at play here, one between
+the client and the L7 load balancer and another between the L7
+load balancer and the server. Because a L7 load balancer operates
+at the HTTP level, it can de-multiplex individual HTTP requests
+sharing the same TCP connection. This is even more important
+with HTTP 2, where multiple concurrent streams are multiplexed
+on the same TCP connection, and some connections can be a lot
+more expensive to handle than others.
+
+The load balancer can do smart things with application traffic, like
+rate-limit requests based on HTTP headers, terminate TLS connections, or force HTTP requests belonging to the same *logical session*
+to be routed to the same backend server. For example, the load balancer could use a cookie to identify which logical session a request
+belongs to and map it to a server using consistent hashing. That
+allows servers to cache session data in memory and avoid fetching it from the data store for each request. The caveat is that sticky sessions can create hotspots, since some sessions can be much more
+expensive to handle than others.
+
+A L7 load balancer can be used as the backend of a L4 load balancer
+that load-balances requests received from the internet. Although
+L7 load balancers have more capabilities than L4 load balancers,
+they also have lower throughput, making L4 load balancers better
+suited to protect against certain DDoS attacks, like SYN floods.
+
+A drawback of using a dedicated load balancer is that all the traffic
+directed to an application needs to go through it. So if the load
+balancer goes down, the application behind it does too. However,
+if the clients are internal to the organization, load balancing can be
+delegated to them using the *sidecar pattern*. The idea is to proxy all
+a client’s network traffic through a process co-located on the same
+machine (the sidecar proxy). The sidecar process acts as a L7 load
+balancer, load-balancing requests to the right servers. And, since
+it’s a reverse proxy, it can also implement various other functions,
+such as rate-limiting, authentication, and monitoring.
+
+This approach (aka “service mesh”) has been gaining popularity
+with the rise of microservices in organizations with hundreds of
+services communicating with each other. As of this writing, popular sidecar proxy load balancers are NGINX, HAProxy, and Envoy. The main advantage of this approach is that it delegates load-
+balancing to the clients, removing the need for a dedicated load
+balancer that needs to be scaled out and maintained. The drawback is that it makes the system a lot more complex since now we
+need a control plane to manage all the sidecars.
+
+### Service mesh
+What is it? A configurable infrastructure layer for a microservices application. It provides microservices governance by adding necessary visibility and security controls. The service mesh helps:
+- Discover
+- Authorize
+- Track
+
+### Sidecar pattern
+Problem: how to implement related and isolated peripheral features without being tightly integrated into the main application.
+
+Sidecars handle inter service communications with features like:
+- Service discovery
+- Load balancing
+- Encryption
+- Authentication and authorization 
+- Monitoring and security-related concerns
+
+... anything that can be abstracted away from the individual service. 
+
+Challenges:
+- Inter-container communication
+- Resource overhead
+
+Use-cases:
+- Service mesh
+- Security
+- Observability
