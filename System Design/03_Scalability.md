@@ -473,8 +473,7 @@ thumb, we should try to keep our applications stateless by pushing state to thir
 Distributing requests across a pool of servers has many benefits.
 Because clients are decoupled from servers and don’t need to know
 their individual addresses, the number of servers behind the load
-balancer can increase or decrease transparently. And since multiple redundant servers can interchangeably be used to handle re-
-quests, a load balancer can detect faulty ones and take them out of
+balancer can increase or decrease transparently. And since multiple redundant servers can interchangeably be used to handle requests, a load balancer can detect faulty ones and take them out of
 the pool, increasing the availability of the overall application.
 
 Distributing requests across a pool of servers has many benefits.
@@ -1274,3 +1273,95 @@ issuing a request is who it says it is. *Authorization* is the process of
 granting the authenticated principal permissions to perform specific operations, like creating, reading, updating, or deleting a particular resource. Typically, this is implemented by assigning one
 or more roles that grant specific permissions to a principal.
 
+A common way for a monolithic application to implement authentication and authorization is with sessions. Because HTTP is a
+stateless protocol, the application needs a way to store data between HTTP requests to associate a request with any other request.
+When a client first sends a request to the application, the application creates a session object with an ID (e.g., a cryptographically-
+strong random number) and stores it in an in-memory cache or
+an external data store. The session ID is returned in the response
+through an HTTP cookie so that the client will include it in all future requests. That way, when the application receives a request
+with a session cookie, it can retrieve the corresponding session object.
+
+So when a client sends its credentials to the application API’s login endpoint, and the credential validation is successful, the principal’s ID and roles are stored in the session object. The application
+can later retrieve this information and use it to decide whether to
+allow the principal to perform a request or not.
+
+Translating this approach to a microservice architecture is not
+that straightforward. For example, it’s not obvious which service
+should be responsible for authenticating and authorizing requests,
+as the handling of requests can span multiple services.
+
+##### Session vs JWT
+![ ](/Resources/images/session_authentication.png)
+
+| **Feature**               | **Session-based Authentication**                                  | **JWT-based Authentication**                              |
+|---------------------------|-------------------------------------------------------------------|----------------------------------------------------------|
+| **Storage**               | Stored on the server in a database or in-memory (e.g., Redis).    | Stored on the client (typically in cookies or localStorage). |
+| **Scalability**           | Limited by server capacity as sessions need to be stored.         | More scalable as tokens are stateless and don’t require server storage. |
+| **Authentication Mechanism** | Server checks session ID against stored data for validity.        | Server validates the token signature to verify authenticity. |
+| **Statefulness**          | Stateful: Server must maintain session state.                    | Stateless: All session data is encapsulated in the token. |
+| **Data Encapsulation**    | Typically contains only a session ID.                            | Can include user-specific claims (e.g., roles, expiration). |
+| **Server Dependency**     | Requires server-side storage and management of sessions.          | No server-side storage required for tokens.               |
+| **Security**              | Secure if HTTPS and proper session management are implemented.    | Secure if tokens are signed, encrypted, and used over HTTPS. |
+| **Token Revocation**      | Easy to revoke (server deletes the session).                     | Difficult to revoke unless combined with a blacklist.     |
+| **Expiration**            | Sessions can be manually expired by the server.                  | JWTs typically have a fixed expiration time (embedded in the token). |
+| **Payload Size**          | Small: Only a session ID is exchanged between client and server.   | Larger: Includes encoded user data and signature.         |
+| **Performance**           | Relatively fast but limited by the need for server lookups.       | Faster as no server lookup is required for validation.    |
+| **Cross-Origin Support**  | Requires proper handling of cookies and CORS.                    | Better suited for APIs, especially in cross-origin scenarios. |
+| **Use Cases**             | Web applications where server-side session management is viable. | APIs and SPAs (Single Page Applications) with stateless architecture. |
+| **Implementation Complexity** | Easier to implement, especially with frameworks providing built-in support. | Slightly more complex, requiring token generation and validation logic. |
+
+Use Session-based Authentication when:
+* The application is server-rendered or doesn’t need to scale horizontally.
+* Simple, secure session management is sufficient.
+
+Use JWT-based Authentication when:
+* The application is API-driven or needs to scale across multiple servers.
+* You want a stateless, decentralized authentication mechanism.
+
+![ ](/Resources/images/jwt_authentication.png)
+
+One approach is to have the API gateway authenticate external requests, since that’s their point of entry. This allows centralizing the
+logic to support different authentication mechanisms into a single
+component, hiding the complexity from internal services. In contrast, *authorizing* requests is best left to individual services to avoid
+coupling the API gateway with domain logic.
+
+When the API gateway has authenticated a request, it creates a security token. The gateway passes this token with the request to the
+internal services, which in turn pass it downstream to their dependencies. Now, when an internal service receives a request with a
+security token attached, it needs to have a way to validate it and
+obtain the principal’s identity and roles. The validation differs depending on the type of token used, which can be *opaque* and not
+contain any information, or transparent and embed the principal’s
+information within the token itself. The downside of an opaque token is that it requires calling an external auth service to validate it
+and retrieve the principal’s information. Transparent tokens eliminate that call at the expense of making it harder to revoke compromised tokens.
+
+The most popular standard for transparent tokens is the JSON Web
+Token (JWT). A JWT is a JSON payload that contains an expiration
+date, the principal’s identity and roles, and other metadata. In addition, the payload is signed with a certificate trusted by the internal services. Hence, no external calls are needed to validate the
+token.
+
+To sign a JWT there are several algorithms available (HMAC, RSA, ECDSA). HMAC is symmetric signing method which mean the same secret key is used to sign and verify the token. The other are asymetric signing methods - they use a private key to sign a token and a public key to verify it. The choice of signing method depends on your security requirements and system architecture. When we have a monolithic application or trust all the services in your system, HMAC may be sufficient. But if you have microservices architecture or need to share JWTs with untrusted 3P services, RSA or ECDSA provide a more secure solution.
+
+One challenge with JWTs is handling token expiration. If a token is stolen, it can be used until it expires. To mitigate this, you can use refresh tokens with combination with short-lived access tokens. The access token is the actual JWT used for authentication on each request. It has a short expiration time. The refresh token has a much longer expiration time. When the access token expires, instead of requiring the user to log in again, the client can send an refresh token. This process happens behind the scenes without requiring interaction with the user. The refresh token is only sent when the access token has expired, not on every request.
+
+SSO - single sign on - some standards are SAML (security assesion markup language) and OpenID connect (decentralised authentication protocol, allows users to use 3rd party identity providers for authentication). 
+
+Multi-factor authentication - something the user knows and something the user has. 
+
+Passwordless authentication - multi-factor authentication. User uses its email, then we send code or magic link, which can be used to sign in. 
+
+Another common mechanism for authentication is the use of API
+keys. An *API key* is a custom key that allows the API gateway to
+identify the principal making a request and limit what they can
+do. This approach is popular for public APIs, like the ones of, e.g.,
+Github or Twitter.
+
+#### Caveats
+One of the drawbacks of using an API gateway is that it can become a development bottleneck. Since it’s tightly coupled with the
+APIs of the internal services it’s shielding, whenever an internal API changes, the gateway needs to be modified as well. Another
+downside is that it’s one more service that needs to be maintained.
+It also needs to scale to whatever the request rate is for all the services behind it.
+
+That said, if an application has many services and APIs, the pros
+outweigh the cons, and it’s generally a worthwhile investment. So
+how do you go about implementing a gateway? You can roll your
+own API gateway, using a reverse proxy as a starting point, like
+NGINX, or use a managed solution, like Azure API Management or Amazon API Gateway.
