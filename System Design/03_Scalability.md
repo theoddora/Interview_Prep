@@ -75,6 +75,58 @@ To summarize, allowing clients to cache static resources has reduced the load on
 with some HTTP headers! We can take caching one step further
 by introducing a server-side HTTP cache with a reverse proxy.
 
+## Etag vs Last-Modified
+Both ETag and Last-Modified are HTTP headers used for caching and validation to determine if a resource has changed since the client last accessed it. While they serve similar purposes, they differ in how they work, their precision, and use cases. Here's a detailed comparison:
+
+### Last-Modified
+*Last-Modified* represents the timestamp when the server last modified the resource.
+Format: A date and time string in HTTP-date format, e.g.,
+> Last-Modified: Wed, 14 Nov 2024 12:45:26 GMT
+
+The server includes the Last-Modified header in the response when serving a resource.
+On subsequent requests, the client sends an If-Modified-Since header with the timestamp of the last modification it knows of, e.g.,
+
+> If-Modified-Since: Wed, 14 Nov 2024 12:45:26 GMT
+
+The server compares the resource's modification time with the provided timestamp:
+If the resource hasn’t changed, the server responds with 304 Not Modified (saving bandwidth).
+If it has changed, the server sends the new resource and updates the Last-Modified header.
+
+Limitations:
+   * Granularity: Limited to 1-second precision, which might not reflect changes made within a second.
+   * Clock Skew: Relies on accurate and synchronized clocks between the client and server.
+   * Dynamic Resources: Not ideal for resources frequently regenerated without changes (e.g., dynamic web pages).
+   * False Positives: Cannot detect changes if the resource was modified and reverted to its original state.
+
+### ETag
+A unique identifier (usually a hash or version ID) assigned by the server to represent a specific version of a resource.
+Format: A string, often enclosed in quotes, e.g.,
+
+> ETag: "686897696a7c876b7e"
+
+The server includes the ETag header in the response to identify the current version of the resource.
+On subsequent requests, the client sends an If-None-Match header with the previously received ETag, e.g.,
+
+> If-None-Match: "686897696a7c876b7e"
+
+The server compares the ETag with the current version:
+If the ETag matches, the server responds with 304 Not Modified.
+
+Advantages:
+* Precision: Identifies resource changes even if they occur within a second or are not timestamp-related.
+* Dynamic Content: Works well with dynamically generated or frequently updated resources.
+* Flexibility: The server controls how ETags are generated, allowing for highly customized caching strategies.
+
+Limitations:
+* Overhead: Computing and transmitting ETags can increase server and network load compared to a simple timestamp.
+* Implementation Complexity: Requires additional server-side logic to generate and manage ETags.
+
+Weak vs. Strong ETags:
+* Strong: Requires byte-for-byte equality, more accurate but less tolerant.
+* Weak: Prefixed with W/, tolerates minor changes that don’t affect content (e.g., timestamp-only differences).
+
+In practice, many servers use both headers together to provide redundancy and optimize caching behavior.
+
 ## Reverse proxies
 A reverse proxy is a server-side proxy that intercepts all communications with clients. Since the proxy is indistinguishable from
 the actual server, clients are unaware that they are communicating
@@ -918,7 +970,18 @@ availability in the presence of network partitions. CockroachDB
 and Spanner are well-known examples of NewSQL data stores.
 
 # Caching
-What caching is and why it matters? Caching is like a memory layer that stores copies of frequently accessed data. It's a strategy to speed things up by keeping data readily available reducing the need to fetch it from slower databases every time it's requested. 
+What caching is and why it matters? Caching is like a memory layer that stores copies of frequently accessed data. It's a strategy to speed things up by keeping data readily available reducing the need to fetch it from slower databases every time it's requested.
+
+### Types of caches by level
+* client caching
+* CDN caching
+* Web server caching
+* Database caching
+* Application caching
+
+### Types of caches by design
+* Global cache
+* Distributed cache 
 
 ### Pitfalls
 
@@ -949,24 +1012,34 @@ to cache misses, or the cache becomes unavailable, you don’t want
 your application to fall over (but it’s okay for it to become slower).
 
 ## Policies
+Invalidating the cache is one of the most difficult things when it comes to caching. Invalidation strategies answers the question "How to invalidate your cache". Eviction policies answer "When to invalidate your cache".  
+
+
+
 When a cache miss occurs, the missing object has to be requested
 from the origin, which can happen in two ways:
 from the origin, which can happen in two ways:
 * After getting an “object-not-found” error from the cache, the
 application requests the object from the origin and updates
-the cache. In this case, the cache is referred to as a side cache,
-and it’s typically treated as a key-value store by the application.
+the cache. In this case, the cache is referred to as a *side cache*,
+and it’s typically treated as a key-value store by the application. **Write-aroung cache (cache-aside, lazy loading)**
+First try to read the data from the cache, if the data is in the cache we return it to the client. If the data is not in the cache we know that we need to make a request to the storage and get it from there.  After that we update the cache. Pros: The cache stays slim and only contains the data it really needs. 
+Cons: Cache gets filled only after a cache miss, meaning 3 trips. 
 * Alternatively, the cache is inline, and it communicates
 directly with the origin, requesting the missing object on
 behalf of the application. In this case, the application only
 ever accesses the cache. We have already seen an example
-of an inline cache when discussing HTTP caching.
+of an inline cache when discussing HTTP caching. This is a proactive approach - **write-through cache**. It is well-synced with the database, resulting in fewer reads. Downside is that infrequently-requested data is also written to the cache, resulting in a larger cache.
+*  **Write-back cache** - it's similar to write-through cache but the writing to the database is performed asynchronously. 
 
 Because a cache has a limited capacity, one or more entries need to
-be evicted to make room for new ones when its capacity is reached.
-Which entry to remove depends on the eviction policy used by the
-cache and the objects’ access pattern. For example, one commonly
-used policy is to evict the *least recently used* (LRU) entry.
+be **evicted** to make room for new ones when its capacity is reached.
+Which entry to remove depends on the **eviction policy** used by the
+cache and the objects’ access pattern. 
+
+For example, one commonly
+used policy is to evict the *least recently used* (LRU) entry - Discards least recently used items first. This algorithm requires keeping track of what was used and when. 
+Another one - lesst frequetnly used. The LFU algorithm counts how often an item is needed; those used less often are discarded first. This is similar to LRU, except that how many times a block was accessed is stored instead of how recently. Other alternatives are LIFO and FIFO. 
 
 A cache can also have an expiration policy that dictates when an
 object should be evicted, e.g., a TTL. When an object has been in the
@@ -976,7 +1049,7 @@ higher the likelihood of serving stale and inconsistent data.
 
 The expiration doesn’t need to occur immediately, and it can be deferred to the next time the entry is requested. In fact, that might be
 preferable — if the origin (e.g., a data store) is temporarily unavailable, it’s more resilient to return an object with an expired TTL to
-the application rather than an error.
+the application rather than an error.  
 
 An expiry policy based on TTL is a workaround for *cache invalidation*, which is very hard to implement in practice. For example, if you were to cache the result of a database query, every time
 any of the data touched by that query changes (which could span
@@ -1028,8 +1101,7 @@ load merely shifts to the external cache. Therefore, the cache will
 eventually need to be scaled out if the load increases. When that
 happens, as little data as possible should be moved around (or
 dropped) to avoid the cache degrading or the hit ratio dropping
-significantly. Consistent hashing, or a similar partitioning tech-
-nique, can help reduce the amount of data that needs to be shuffled
+significantly. Consistent hashing, or a similar partitioning technique, can help reduce the amount of data that needs to be shuffled
 when the cache is rebalanced.
 
 An external cache also comes with a maintenance cost as it’s yet
@@ -1049,3 +1121,156 @@ by, e.g., shedding requests; we will discuss a few approaches for
 achieving that in the book’s resiliency part. What’s important to
 remember is that caching is an optimization, and the system needs
 to survive without it at the cost of being slower.
+
+
+ 
+# Microservices
+
+Splitting an application into services adds a great deal
+of complexity to the overall system, which is only worth paying if
+it can be amortized across many development teams. Let’s take a
+closer look at why that is.
+## Caveats
+
+### Tech stack
+While nothing forbids each microservice to use a different tech
+stack, doing so makes it more difficult for a developer to move from one team to another. And think of the sheer number of libraries — one for each language adopted — that need to be supported to provide common functionality that all services need, like
+logging.
+
+It’s only reasonable, then, to enforce a certain degree of standardization. One way to do that, while still allowing some degree of
+freedom, is to loosely encourage specific technologies by providing a great development experience for the teams that stick with
+the recommended portfolio of languages and technologies.
+
+### Communication
+Remote calls are expensive and introduce non-determinism. Much
+of what is described in this book is about dealing with the complexity of distributed processes communicating over the network.
+That said, a monolith doesn’t live in isolation either, since it serves
+external requests and likely depends on third-party APIs as well,
+so these issues need to be tackled there as well, albeit on a smaller
+scale.
+
+### Coupling
+Microservices should be loosely coupled so that a change in one
+service doesn’t require changing others. When that’s not the case,
+you can end up with a dreaded distributed monolith, which has all
+the downsides of a monolith while being an order of magnitude
+more complex due to its distributed nature.
+
+There are many causes of tight coupling, like fragile APIs that require clients to be updated whenever they change, shared libraries
+that have to be updated in lockstep across multiple services, or the
+use of static IP addresses to reference external services.
+
+### Resource provisioning
+To support a large number of independent services, it should be
+simple to provision new machines, data stores, and other commodity resources — you don’t want every team to come up with their
+own way of doing it. And, once these resources have been provisioned, they have to be configured. To pull this off efficiently, a fair amount of automation is needed.
+
+### Testing
+While testing individual microservices is not necessarily more challenging than testing a monolith, testing the integration of microservices is a lot harder. This is because very subtle and unexpected
+behaviors will emerge only when services interact with each other
+at scale in production.
+
+### Operations
+Just like with resource provisioning, there should be a common
+way of continuously delivering and deploying new builds safely
+to production so that each team doesn’t have to reinvent the wheel.
+
+Additionally, debugging failures, performance degradations, and
+bugs is a lot more challenging with microservices, as you can’t
+just load the whole application onto your local machine and step
+through it with a debugger. This is why having a good observability platform becomes crucial.
+
+###  Eventual consistency
+As a side effect of splitting an application into separate services,
+the data model no longer resides in a single data store. However,
+as we have learned in previous chapters, atomically updating data
+spread in different data stores, and guaranteeing strong consistency, is slow, expensive, and hard to get right. Hence, this type
+of architecture usually requires embracing eventual consistency.
+
+So to summarize, it’s generally best to start with a monolith and decompose it only when there is a good reason to do so. As a bonus,
+you can still componentize the monolith, with the advantage that
+it’s much easier to move the boundaries as the application grows.
+Once the monolith is well matured and growing pains start to arise,
+you can start to peel off one microservice at a time from it.
+
+## API gateway
+
+We need to rethink how the outside world communicates with the application.
+For example, a client might need to perform multiple requests to
+different services to fetch all the information it needs to complete a
+specific operation. This can be expensive on mobile devices, where
+every network request consumes precious battery life.
+
+Moreover, clients need to be aware of implementation details,
+such as the DNS names of all the internal services. This makes it
+challenging to change the application’s architecture as it requires
+changing the clients as well, which is hard to do if you don’t
+control them. Once a public API is out there, you had better be
+prepared to maintain it for a very long time.
+
+As is common in computer science, we can solve almost any problem by adding a layer of indirection. We can hide the internal APIs
+behind a public one that acts as a facade, or proxy, for the internal
+services . The service that exposes this public API
+is called the API gateway (a reverse proxy).
+
+### Core responsibilities
+
+#### Routing
+The most obvious function of an API gateway is routing inbound
+requests to internal services. One way to implement that is with
+the help of a routing map, which defines how the public API maps
+to the internal APIs. This mapping allows internal APIs to change
+without breaking external clients. For example, suppose there is
+a 1:1 mapping between a specific public endpoint and an internal
+one — if in the future the internal endpoint changes, the external
+clients can continue to use the public endpoint as if nothing had
+changed.
+
+#### Composition
+The data of a monolithic application generally resides in a single
+data store, but in a distributed system, it’s spread across multiple
+services, each using its own data store. As such, we might encounter use cases that require stitching data together from multiple
+sources. The API gateway can offer a higher-level API that queries
+multiple services and composes their responses. This relieves the
+client from knowing which services to query and reduces the number of requests it needs to perform to get the data it needs.
+
+Composing APIs is not simple. The availability of the composed
+API decreases as the number of internal calls increases, since each
+has a non-zero probability of failure. Moreover, the data might be
+inconsistent, as updates might not have propagated to all services
+yet; in that case, the gateway will have to resolve this discrepancy somehow.
+
+#### Translation
+The API gateway can translate from one IPC mechanism to another. For example, it can translate a RESTful HTTP request into
+an internal gRPC call.
+
+It can also expose different APIs to different clients. For example,
+the API for a desktop application could potentially return more
+data than the one for a mobile application, as the screen estate is
+larger and more information can be presented at once. Also, network calls are more expensive for mobile clients, and requests generally need to be batched to reduce battery usage.
+
+To meet these different and competing requirements, the gateway
+can provide different APIs tailored to different use cases and translate these to internal calls. *Graph-based* APIs are an increasingly
+popular solution for this. A graph-based API exposes a schema composed of types, fields, and relationships across types, which describes the data. Based on this schema, clients send queries declaring precisely what data they need, and the gateway’s job is to figure out how to translate these queries into internal API calls.
+
+This approach reduces the development time as there is no need
+to introduce different APIs for different use cases, and clients are
+free to specify what they need. There is still an API, though; it just
+happens that it’s described with a graph schema, and the gateway
+allows to perform restricted queries on it. GraphQL is the most
+popular technology in this space at the time of writing.
+
+#### Cross-cutting concerns
+As the API gateway is a reverse proxy, it can also implement cross-
+cutting functionality that otherwise would have to be part of each
+service. For example, it can cache frequently accessed resources
+or rate-limit requests to protect the internal services from being
+overwhelmed.
+
+Authentication and authorization are some of the most common
+and critical cross-cutting concerns. *Authentication* is the process of
+validating that a so-called *principal* — a human or an application —
+issuing a request is who it says it is. *Authorization* is the process of
+granting the authenticated principal permissions to perform specific operations, like creating, reading, updating, or deleting a particular resource. Typically, this is implemented by assigning one
+or more roles that grant specific permissions to a principal.
+

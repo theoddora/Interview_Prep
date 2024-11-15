@@ -39,6 +39,9 @@ A process running a service
 ## Client
 A process sending requests to a server
 
+## Overhead
+In computing, overhead refers to the additional resources or costs required to perform a task beyond the minimum needed to accomplish the task itself. It represents the "extra work" the system does to manage, support, or facilitate operations.
+
 **Data Freshness**:
 1. Real-Time
 : A stock trader sitting at home needs the data to be real-time because a delay in
