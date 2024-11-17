@@ -1697,3 +1697,29 @@ an alternate low-priority channel and remove them from the main
 channel without processing them. The consumer reads from the
 slow channel but does so less frequently than the main channel,
 isolating the damage a single bad user can inflict to the others.
+
+# Summary
+Building scalable applications boils down to exploiting three orthogonal patterns:
+* breaking the application into separate services, each with its
+own well-defined responsibility (functional decomposition);
+* splitting data into partitions and distributing them across
+nodes (partitioning);
+* replicating functionality or data across nodes (replication).
+
+You should have a feel for the pros and cons
+of each pattern.
+
+There is another message I subtly tried to convey: there is a small
+subset of managed services that you can use to build a surprisingly
+large number of applications. The main attraction of managed services is that someone else gets paged for them.
+
+Depending on which cloud provider you are using, the name of
+the services and their APIs differ somewhat, but conceptually they
+serve the same use cases. You should be familiar with some way
+to run your application instances in the cloud (e.g., EC2) and load-balance traffic to them (e.g., ELB). And since you want your applications to be stateless, you also need to be familiar with a file store
+(e.g., S3), a key-value/document store (e.g., DynamoDB), and a
+messaging service (e.g., SQS, Kinesis). I would argue that these
+technologies are reasonable enough defaults for building a large number of scalable applications. Once you have a scalable core,
+you can add optimizations, such as caching in the form of man-
+aged Redis/Memcached or CDNs.
+
