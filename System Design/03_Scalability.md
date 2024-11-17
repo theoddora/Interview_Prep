@@ -1495,3 +1495,205 @@ new build blindly without monitoring the running service — the
 build might throw an exception at startup that prevents the service from starting, resulting in a catastrophic failure. Instead, the
 pipeline should release the new build incrementally while monitoring the service and stop the roll-out if there is clear evidence that something is off, and potentially also roll it back automatically.
 
+# Messaging
+Messaging is a form of indirect
+communication in which a producer writes a message to a channel
+— or message broker — that delivers the message to a consumer
+on the other end.
+
+A message channel acts as a temporary buffer for the receiver. Unlike the direct request-response communication style we have been
+using so far, messaging is inherently asynchronous, as sending a message doesn’t require the receiving service to be online. The
+messages themselves have a well-defined format, consisting of a
+header and a body. The message header contains metadata, such
+as a unique message ID, while the body contains the actual content.
+
+Typically, a message can either be a command, which specifies
+an operation to be invoked by the receiver, or an event, which
+signals the receiver that something of interest happened to the
+sender. A service can use inbound adapters to receive messages
+from channels and outbound adapters to send messages to chan-
+nels.
+
+Server responds with 202 Accepted, signaling to the client that the request
+has been accepted for processing but hasn’t completed yet. Eventually, the service will read the message from the channel and process it. Because the request is deleted from the channel
+only when it’s successfully processed, the request will eventually
+be picked up again and retried if the service fails to handle it.
+
+Decoupling the producer from the service
+consumer with a channel provides many benefits. The producer
+can send requests to the consumer even if the consumer is temporarily unavailable. Also, requests can be load-balanced across a
+pool of consumer instances, making it easy to scale out the consuming side. And because the consumer can read from the channel at
+its own pace, the channel smooths out load spikes, preventing it
+from getting overloaded.
+
+Another benefit is that messaging enables to process multiple messages within a single *batch* or *unit of work*. Most messaging brokers
+support this pattern by allowing clients to fetch up to N messages
+with a single read request. Although batching degrades the processing latency of individual messages, it dramatically improves
+the application’s throughput. So when we can afford the extra latency, batching is a no brainer.
+
+In general, a message channel allows any number of producer and
+consumer instances to write and read from it. But depending on
+how the channel delivers a message, it’s classified as either point-to-point or publish-subscribe. In a *point-to-point* channel, the message is delivered to exactly one consumer instance. Instead, in a
+*publish-subscribe* channel, each consumer instance receives a copy
+of the message.
+
+Unsurprisingly, introducing a message channel adds complexity.
+The message broker is yet another service that needs to be maintained and operated. And because there is an additional hop between the producer and consumer, the communication latency is
+necessarily going to be higher; more so if the channel has a large
+backlog of messages waiting to be processed. As always, it’s all
+about tradeoffs.
+
+### One-way messaging
+In this messaging style, the producer writes a message to a point-to-point channel with the expectation that a consumer will eventually read and process it.
+
+### Request-response messaging
+This messaging style is similar to the direct request-response style
+we are familiar with, albeit with the difference that the request
+and response messages flow through channels. The consumer has
+a point-to-point request channel from which it reads messages,
+while every producer has its dedicated response channel.
+
+When a producer writes a message to the request channel, it decorates it with a request ID and a reference to its response channel. Then, after a consumer has read and processed the message,
+it writes a reply to the producer’s response channel, tagging it with
+the request’s ID, which allows the producer to identify the request
+it belongs to.
+
+### Broadcast messaging
+
+In this messaging style, the producer writes a message to a publish-subscribe channel to broadcast it to all consumer instances. This style is generally used to notify a group of processes
+that a specific event has occurred. For example, we have already
+encountered this pattern when discussing the outbox pattern.
+
+## Guarantees
+A message channel is implemented by a messaging service, or broker, like AWS SQS or Kafka, which buffers messages and decouples the producer from the consumer. Different message brokers
+offer different guarantees depending on the tradeoffs their implementations make. For example, you would think that a channel
+should respect the insertion order of its messages, but you will
+find that some implementations, like SQS standard queues, don’t
+offer any strong ordering guarantees. Why is that?
+
+Because a message broker needs to scale horizontally just like the applications that use it, its implementation is necessarily
+distributed. And when multiple nodes are involved, guaranteeing
+order becomes challenging, as some form of coordination is
+required. Some brokers, like Kafka, partition a channel into
+multiple sub-channels. So when messages are written to the
+channel, they are routed to sub-channels based on their partition
+key. Since each partition is small enough to be handled by a single
+broker process, it’s trivial to enforce an ordering of the messages
+routed to it. But to guarantee that the message order is preserved
+end-to-end, only a single consumer process is allowed to read
+from a sub-channel.
+
+Because the channel is partitioned, all the caveats apply to it. For example, a partition could become
+hot enough (due to the volume of incoming messages) that the
+consumer reading from it can’t keep up with the load. In this
+case, the channel might have to be rebalanced by adding more
+partitions, potentially degrading the broker while messages are
+being shuffled across partitions. It should be clear by now why not
+guaranteeing the order of messages makes the implementation of
+a broker much simpler.
+
+Ordering is just one of the many tradeoffs a broker needs to make,
+such as:
+* delivery guarantees, like at-most-once or at-least-once;
+* message durability guarantees;
+* latency;
+* messaging standards supported, like AMQP;
+* support for competing consumer instances;
+* broker limits, such as the maximum supported size of messages.
+
+Because there are so many different ways to implement channels,
+in the rest of this section, we will make some assumptions for the
+sake of simplicity:
+* Channels are point-to-point and support many producer and
+consumer instances.
+* Messages are delivered to the consumer at least once.
+* While a consumer instance is processing a message, the message remains in the channel, but other instances can’t read
+it for the duration of a visibility timeout. The *visibility timeout* guarantees that if the consumer instance crashes while
+processing the message, the message will become visible to
+other instances when the timeout triggers. When the consumer instance is done processing the message, it deletes it
+from the channel, preventing it from being received by any
+other consumer instance in the future.
+
+The above guarantees are similar to the ones offered by managed
+services such as Amazon’s SQS and Azure Queue Storage.
+
+## Exactly-once processing
+As mentioned before, a consumer instance has to delete a message
+from the channel once it’s done processing it so that another instance won’t read it. If the consumer instance deletes the message
+before processing it, there is a risk it could crash after deleting the
+message but before processing it, causing the message to be lost
+for good. On the other hand, if the consumer instance deletes the
+message only after processing it, there is a risk that it crashes after
+processing the message but before deleting it, causing the same
+message to be read again later on.
+
+Because of that, there is no such thing as exactly-once message delivery. So the best a consumer can do is to simulate exactly-once message processing by requiring messages to be idempotent and deleting them from the channel only after they have been processed.
+
+## Failures
+When a consumer instance fails to process a message, the visibility timeout triggers, and the message is eventually delivered to
+another instance. What happens if processing a specific message
+consistently fails with an error, though? To guard against the message being picked up repeatedly in perpetuity, we need to limit the
+maximum number of times the same message can be read from the
+channel.
+
+To enforce a maximum number of retries, the broker can stamp
+messages with a counter that keeps track of the number of times
+the message has been delivered to a consumer. If the broker
+doesn’t support this functionality out of the box, the consumer
+can implement it.
+
+Once we have a way to count the number of times a message has
+been retried, we still have to decide what to do when the maximum is reached. A consumer shouldn’t delete a message without
+processing it, as that would cause data loss. But what it can do is
+remove the message from the channel after writing it to a *dead letter
+channel* — a channel that buffers messages that have been retried
+too many times.
+
+This way, messages that consistently fail are not lost forever but
+merely put on the side so that they don’t pollute the main channel,
+wasting the consumer’s resources. A human can then inspect these
+messages to debug the failure, and once the root cause has been
+identified and fixed, move them back to the main channel to be
+reprocessed.
+
+## Backlogs
+One of the main advantages of using a message broker is that it
+makes the system more robust to outages. This is because the producer can continue writing messages to a channel even if the consumer is temporarily degraded or unavailable. As long as the arrival rate of messages is lower than or equal to their deletion rate, everything is great. However, when that is no longer true and the
+consumer can’t keep up with the producer, a backlog builds up.
+
+A messaging channel introduces a bimodal behavior in the system. In one mode, there is no backlog, and everything works as
+expected. In the other, a backlog builds up, and the system enters a degraded state. The issue with a backlog is that the longer it
+builds up, the more resources and/or time it will take to drain it.
+
+There are several reasons for backlogs, for example:
+- more producer instances come online, and/or their throughput increases, and the consumer can’t keep up with the arrival rate;
+- the consumer’s performance has degraded and messages
+take longer to be processed, decreasing the deletion rate;
+- the consumer fails to process a fraction of the messages,
+which are picked up again until they eventually end up
+in the dead letter channel. This wastes the consumer’s
+resources and delays the processing of healthy messages.
+
+To detect and monitor backlogs, we can measure the average time a
+message waits in the channel to be read for the first time. Typically,
+brokers attach a timestamp of when the message was first written
+to it. The consumer can use that timestamp to compute how long
+the message has been waiting in the channel by comparing it to
+the timestamp taken when the message was read. Although the
+two timestamps have been generated by two physical clocks that
+aren’t perfectly synchronized, this measure generally provides a good warning sign of backlogs.
+
+## Fault isolation
+A single producer instance that emits “poisonous” messages that
+repeatedly fail to be processed can degrade the consumer and
+potentially create a backlog because these messages are processed
+multiple times before they end up in the dead-letter channel.
+Therefore, it’s important to find ways to deal with poisonous
+messages before that happens.
+
+If messages are decorated with an identifier of the source that generated them, the consumer can treat them differently. For example, suppose messages from a specific user fail consistently. In
+that case, the consumer could decide to write these messages to
+an alternate low-priority channel and remove them from the main
+channel without processing them. The consumer reads from the
+slow channel but does so less frequently than the main channel,
+isolating the damage a single bad user can inflict to the others.
