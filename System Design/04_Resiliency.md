@@ -689,3 +689,77 @@ stop serving requests. In our case, temporarily rejecting requests
 just because the data store used for rate-limiting is not reachable
 could damage the business. Instead, it’s safer to keep serving requests based on the last state read from the store.
 
+## Constant work
+When overload, configuration changes, or faults force an application to behave differently from usual, we say the application has
+a **multi-modal behavior**. Some of these **modes** might trigger rare
+bugs, conflict with mechanisms that assume the happy path, and
+more generally make life harder for operators, since their mental
+model of how the application behaves is no longer valid. Thus, as
+a general rule of thumb, we should strive to minimize the number
+of modes.
+
+For example, simple key-value stores are favored over relational
+databases in data planes because they tend to have predictable performance. A relational database has many operational modes due
+to hidden optimizations, which can change how specific queries
+perform from one execution to another. Instead, dumb key-value
+stores behave predictably for a given query, which guarantees that there won’t be any surprises.
+
+A common reason for a system to change behavior is overload,
+which can cause the system to become slower and degrade at the
+worst possible time. Ideally, the worst- and average-case behavior shouldn’t differ. One way to achieve that is by exploiting the
+**constant work pattern**, which keeps the work per unit time constant.
+
+The idea is to have the system perform the same amount of work
+under high load as under average load. And, if there is any variation under stress, it should be because the system is performing
+better, not worse. Such a system is also said to be **antifragile**. This is
+a different property from resiliency; a resilient system keeps operating under extreme load, while an antifragile one performs better.
+
+We have already seen one application of the constant work pattern
+when discussing the propagation of configuration changes from
+the control plane to the data plane. For example, suppose we have a configuration store (control plane) that stores a bag
+of settings for each user, like the quotas used by the API gateway
+(data plane) to rate-limit requests. When a setting changes for a
+specific user, the control plane needs to broadcast it to the data
+plane. However, as each change is a separate independent unit of
+work, the data plane needs to perform work proportional to the
+number of changes.
+
+If you don’t see how this could be a problem, imagine that a large
+number of settings are updated for the majority of users at the
+same time (e.g., quotas changed due to a business decision). This
+could cause an unexpectedly large number of individual update
+messages to be sent to every data plane instance, which could
+struggle to handle them.
+
+The workaround to this problem is simple but powerful. The control plane can periodically dump the settings of all users to a file in
+a scalable and highly available file store like Azure Storage or AWS
+S3. The dump includes the configuration settings of all users, even
+the ones for which there were no changes. Data plane instances can then periodically read the dump in bulk and refresh their local view of the system’s configuration. Thus, no matter how many
+settings change, the control plane periodically writes a file to the
+data store, and the data plane periodically reads it.
+
+We can take this pattern to the extreme and pre-allocate empty configuration slots for the maximum number of supported users. This
+guarantees that as the number of users grows, the work required
+to propagate changes remains stable. Additionally, doing so allows to stress-test the system and understand its behavior, knowing that it will behave the same under all circumstances. Although
+this limits the number of users, a limit exists regardless of whether
+the constant work pattern is used or not. This approach is typically used in cellular architectures, where a single cell
+has a well-defined maximum size and the system is scaled out by
+creating new cells.
+
+The beauty of using the constant work pattern is that the data plane
+periodically performs the same amount of work in bulk, no matter how many configuration settings have changed. This makes
+updating settings reliable and predictable. Also, periodically writing and reading a large file is much simpler to implement correctly
+than a complex mechanism that only sends what changed.
+
+Another advantage of this approach is that it’s robust against a
+whole variety of faults thanks to its self-healing properties. If the
+configuration dump gets corrupted for whatever reason, no harm
+is done since the next update will fix it. And if a faulty update was
+pushed to all users by mistake, reverting it is as simple as creating
+a new dump and waiting it out. In contrast, the solution that sends
+individual updates is much harder to implement correctly, as the
+data plane needs complex logic to handle and heal from corrupted
+updates.
+
+To sum up, performing constant work is more expensive than doing just the necessary work. Still, it’s often worth considering it,
+given the increase in reliability and reduction in complexity it enables.
