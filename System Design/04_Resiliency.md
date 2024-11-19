@@ -763,3 +763,15 @@ updates.
 
 To sum up, performing constant work is more expensive than doing just the necessary work. Still, it’s often worth considering it,
 given the increase in reliability and reduction in complexity it enables.
+
+| **Constant Work Pattern**         | **Description**                                                                                          | **Example**                                                                                     |
+|------------------------------------|----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| **Periodic Health Checks**         | Services routinely send/receive heartbeat signals or health check requests.                              | Monitoring tool polls all services every minute to check health status.                        |
+| **Regular Data Synchronization**   | Services exchange/update data at fixed intervals to maintain consistency.                                | User profile updates synchronized to a centralized database every 10 seconds.                 |
+| **Message Consumption Patterns**   | Services consume messages from queues in a consistent manner.                                            | Worker service processes orders from a message queue at a constant rate.                       |
+| **Fixed Scheduling Tasks (Cron)**  | Services perform scheduled operations based on a constant timing mechanism.                              | Batch processing cleans up logs every midnight; billing generates invoices monthly.            |
+| **Load Balancer Routing**          | Requests are distributed among service instances in a constant manner.                                   | Load balancer directs traffic evenly across multiple replicas of a service.                   |
+| **Periodic Cache Updates**         | Services refresh their caches at fixed intervals for performance.                                        | Product catalog service updates its cache every 5 minutes.                                     |
+| **Circuit Breaker Monitoring**     | Circuit breakers monitor availability and reset thresholds at constant intervals.                        | Failed requests retried every 10 seconds after detecting a failure.                           |
+| **Logging and Metrics Collection** | Services emit logs, metrics, and telemetry data at fixed rates for monitoring and debugging.              | Performance metrics (CPU, memory) sent every 30 seconds; error logs pushed in real time.       |
+ß 
