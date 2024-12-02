@@ -1,18 +1,19 @@
 # TCP/IP
+What is it? The TCP/IP model is a fundamental framework for computer networking. It stands for Transmission Control Protocol/Internet Protocol, which are the core protocols of the Internet. This model defines how data is transmitted over networks, ensuring reliable communication between devices. It consists of four layers: the Link Layer, the Internet Layer, the Transport Layer, and the Application Layer. Each layer has specific functions that help manage different aspects of network communication, making it essential for understanding and working with modern networks.
 
 ## Link layer
-Network protocols that operate on lo-
-cal network links, like Ethernet or Wi-Fi, and provides an interface to the underlying network hardware. Switches operate at this layer and forward Ethernet packets based on their
+Network protocols that operate on local network links, like Ethernet or Wi-Fi, and provides an interface to the underlying network hardware. Switches operate at this layer and forward Ethernet packets based on their
 destination MAC address. 
 
 ## Internet layer
-routes packets from one machine to another
-across the network. The Internet Protocol (IP) is the core protocol of this layer, which delivers packets on a best-effort basis (i.e., packets can be dropped, duplicated, or corrupted).
+Routes packets from one machine to another
+across the network. The Internet Protocol (IP) is the core protocol of this layer, which delivers packets on a **best-effort basis** (i.e., packets can be dropped, duplicated, or corrupted).
 Routers operate at this layer and forward IP packets to the
 next router along the path to their final destination.
 
 Data sent from one machine to another it is sent in the form of IP packets. Think of IP packets as fundamental unit of data stored in bytes. 
 Two main sections: IP header and IP version.
+
 IP header: information about the packet:
 - source IP address
 - destination IP address
@@ -27,17 +28,31 @@ enable multiple processes hosted on the same machine to
 communicate at the same time, port numbers are used to address the processes on either end. The most important protocol in this layer is the Transmission Control Protocol (TCP),
 which creates a reliable communication channel on top of IP.
 
-We need to create a TCP connection and this process of initially setting up a connection is called handshake.  
+We need to create a **TCP connection** and this process of initially setting up a connection is called handshake. 
 
 ## Application layer
 Defines high-level communication protocols, like HTTP or DNS. Typically your applications will target this level of abstraction.
 
+![ ](/Resources/images/osi.png)
+
 # Reliable links
+At the internet layer, the communication between two nodes 
+happens by routing packets to their destination from one router to the
+next. Two ingredients are required for this: a way to address nodes
+and a mechanism to route packets across routers.
+
+Addressing is handled by the IP protocol. To decide
+where to send a packet, a router needs to consult a local routing
+table. The table maps a destination address to the address of the
+next router along the path to that destination. The responsibility
+of building and communicating the routing tables across routers
+lies with the Border Gateway Protocol (BGP).
 
 IP doesn’t guarantee that data sent over the internet will
-arrive at its destination. A transport-layer protocol that exposes a reliable communication channel between two processes on top of IP. TCP guarantees
+arrive at its destination. For example, if a router becomes overloaded, it might start dropping packets. TCP comes
+in, a transport-layer protocol that exposes a reliable communication channel between two processes on top of IP. TCP guarantees
 that a stream of bytes arrives in order without gaps, duplication,
-or corruption.
+or corruption. TCP also implements a set of *stability* patterns to avoid overwhelming the network and the receiver.
 
 ## Reliability
 To create the illusion of a reliable channel, TCP partitions a byte
@@ -79,17 +94,15 @@ to be closed to release all resources on both ends. This termination phase invol
 another transmission will occur soon, it makes sense to keep the
 connection open to avoid paying the cold-start tax again.
 
-Moreover, closing a socket doesn’t dispose of it immediately as it transitions to a waiting state (TIME_WAIT) that lasts several min-
-utes and discards any segments received during the wait. The
-wait prevents delayed segments from a closed connection from be-
-ing considered part of a new connection. But if many connections
+Moreover, closing a socket doesn’t dispose of it immediately as it transitions to a waiting state (TIME_WAIT) that lasts several 
+minutes and discards any segments received during the wait. The
+wait prevents delayed segments from a closed connection from being considered part of a new connection. But if many connections
 open and close quickly, the number of sockets in the waiting state
 will continue to increase until it reaches the maximum number of
 sockets that can be open, causing new connection attempts to fail.
-This is another reason why processes typically maintain connec-
-tion pools to avoid recreating connections repeatedly.
+This is another reason why processes typically maintain connection pools to avoid recreating connections repeatedly.
 
-## FLow control
+## Flow control
 
 Flow control is a backoff mechanism that TCP implements to
 prevent the sender from overwhelming the receiver. The receiver
@@ -97,12 +110,14 @@ stores incoming TCP segments waiting to be processed by the
 application into a receive buffer. The receiver also communicates the size of the buffer to the sender
 whenever it acknowledges a segment. Assuming it’s respecting the protocol, the sender avoids sending
 more data than can fit in the receiver’s buffer. This mechanism is not too dissimilar to rate-limiting at the service
-level.
+level, a mechanism that rejects a request when a specific quota is
+exceeded. But, rather than rate-limiting on an
+API key or IP address, TCP is rate-limiting on a connection level.
 
 ## Congestion control
 TCP guards not only against overwhelming the receiver, but also
 against flooding the underlying network. The sender maintains
-a so-called congestion window, which represents the total number
+a so-called *congestion window*, which represents the total number
 of outstanding segments that can be sent without an acknowledgment from the other side. The smaller the congestion window is,
 the fewer bytes can be in flight at any given time, and the less bandwidth is utilized.
 
@@ -115,15 +130,14 @@ the underlying network’s bandwidth.
 
 What happens if a segment is lost? When the sender detects a
 missed acknowledgment through a timeout, a mechanism called
-congestion avoidance kicks in, and the congestion window size is
+*congestion avoidance* kicks in, and the congestion window size is
 reduced. From there onwards, the passing of time increases the
 window size by a certain amount, and timeouts decrease it by another.
 
 As mentioned earlier, the size of the congestion window defines
 the maximum number of bytes that can be sent without receiving an acknowledgment. Because the sender needs to wait for a full
 round trip to get an acknowledgment, we can derive the maximum
-theoretical bandwidth by dividing the size of the congestion win-
-dow by the round trip time:
+theoretical bandwidth by dividing the size of the congestion window by the round trip time:
 
 > Bandwidth = WinSize / RTT
 
@@ -143,8 +157,9 @@ protocol that can be used as an alternative to TCP.
 
 Unlike TCP, UDP does not expose the abstraction of a byte stream
 to its clients. As a result, clients can only send discrete packets
-with a limited size called datagrams. UDP doesn’t offer any reliability as datagrams don’t have sequence numbers and are not ac-
-knowledged. UDP doesn’t implement flow and congestion control
+with a limited size called *datagrams*. UDP doesn’t offer any reliability 
+as datagrams don’t have sequence numbers and are not acknowledged. 
+UDP doesn’t implement flow and congestion control
 either. Overall, UDP is a lean and bare-bones protocol. It’s used
 to bootstrap custom protocols, which provide some, but not all, of
 the stability and reliability guarantees that TCP does.
@@ -160,26 +175,48 @@ it would be obsolete. This is a use case where UDP shines; in
 contrast, TCP would attempt to redeliver the missing data and
 degrade the game’s experience.
 
+
+| Feature                | TCP                                                   | UDP                              |
+|------------------------|-------------------------------------------------------|----------------------------------|
+| **Connection Type**    | Requires a three-way handshake before data transfer, adding latency. | Connectionless; data is sent immediately. |
+| **Reliability**        | Ensures reliable delivery with acknowledgments, retransmissions, and in-order delivery. | No reliability; packets may be lost or arrive out of order. |
+| **Flow Control**       | Uses a sliding window mechanism to manage data flow and avoid overwhelming the receiver. | No flow control; sends data regardless of receiver state. |
+| **Congestion Control** | Adjusts transmission speed based on network conditions to prevent congestion. | No congestion control; data is sent at a constant rate. |
+| **Header Size**        | Larger (minimum 20 bytes) due to fields for reliability and control. | Smaller (8 bytes), reducing overhead. |
+| **Speed**              | Slower due to additional features ensuring reliability. | Faster because it prioritizes speed over reliability. |
+
+### Summary
+- **TCP** is used when reliability, order, and error correction are critical (e.g., file transfers, web browsing, email).
+- **UDP** is preferred for real-time applications where speed is more important than reliability (e.g., video streaming, online gaming, VoIP).
+
+
 # Secure links
 
-We can use the Transport Layer Security (TLS)
+We can use the *Transport Layer Security* (TLS)
 protocol. TLS runs on top of TCP and encrypts the communication channel so that application layer protocols, like HTTP, can
 leverage it to communicate securely. In a nutshell, TLS provides
-encryption, authentication, and integrity.
+*encryption*, *authentication*, and *integrity*.
 
 ## Encryption
 
 Encryption guarantees that the data transmitted between a client
-and a server is **obfuscated** and can only be read by the communicating processes. When the TLS connection is first opened, the client and the server
+and a server is **obfuscated** and can only be read by the communicating processes. 
+When the TLS connection is first opened, the client and the server
 negotiate a shared encryption secret using asymmetric encryption. 
 
 Although asymmetric encryption is slow and expensive, it’s only
-used to create the **shared encryption key**. After that, symmetric encryption is used, which is fast and cheap. The shared key is periodically renegotiated to minimize the amount of data that can be
+used to create the **shared encryption key**. After that, symmetric encryption 
+is used, which is fast and cheap. The shared key is periodically renegotiated to minimize the amount of data that can be
 deciphered if the shared key is broken. 
 
 Encrypting in-flight data has a CPU penalty, but it’s negligible
 since modern processors have dedicated cryptographic instructions. Therefore, TLS should be used for all communications,
 even those not going through the public internet.
+
+Encryption can generally be applied at different levels. These include:
+- **encryption-at-rest** - data is stored in an encrypted form to prevent unauthorized access. An example would be hard drive encryption. Often managed by the data storage provider. They might handle the encryption keys, which can be accessed internally by authorized personnel.
+- **encryption-in-transit** - data that is transmitted is encrypted before transmission and decrypted after reception to prevent unauthorized access during the transmission. TLS applies encryption-in-transit.
+- **end-to-end encryption** - encrypts data from the true sender to the final recipient such that no other party can access the data. The encryption keys are only available to the sender and receiver, and they have no visibility of each other's keys. Popular in messaging apps, secure emails, and services that prioritize privacy.
 
 ## Authentication
 
@@ -188,18 +225,20 @@ wire, the client still needs to authenticate the server to verify it’s
 who it claims to be. Similarly, the server might want to authenticate the identity of the client.
 
 TLS implements authentication using digital signatures based on
-asymmetric cryptography. The server generates a key pair with a
+*asymmetric cryptography*. The server generates a key pair with a
 private and a public key and shares its public key with the client.
 When the server sends a message to the client, it signs it with its
 private key. The client uses the server’s public key to verify that
 the digital signature was actually signed with the private key. This
-is possible thanks to mathematical properties3 of the key pair.
+is possible thanks to mathematical properties of the key pair.
 
 The problem with this approach is that the client has no idea
 whether the public key shared by the server is authentic. Hence,
 the protocol uses certificates to prove the ownership of a public
 key. A certificate includes information about the owning entity,
-expiration date, public key, and a digital signature of the third-party entity that issued the certificate. The certificate’s issuing entity is called a certificate authority (CA), which is also represented
+expiration date, public key, and a digital signature of the third-party 
+entity that issued the certificate. The certificate’s issuing 
+entity is called a *certificate authority* (CA), which is also represented
 with a certificate. This creates a chain of certificates that ends with
 a certificate issued by a root CA, which
 self-signs its certificate.
@@ -209,7 +248,9 @@ of its ancestors, must be present in the trusted store of the client.
 Trusted root CAs, such as Let’s Encrypt, are typically included in
 the client’s trusted store by default by the operating system vendor.
 
-When a TLS connection is opened, the server sends the full certificate chain to the client, starting with the server’s certificate and ending with the root CA. The client verifies the server’s certificate
+When a TLS connection is opened, the server sends the full certificate chain
+to the client, starting with the server’s certificate and ending with the 
+root CA. The client verifies the server’s certificate
 by scanning the certificate chain until it finds a certificate that it
 trusts. Then, the certificates are verified in reverse order from that
 point in the chain. The verification checks several things, like the
@@ -223,11 +264,6 @@ verify the server’s identity, and opening a connection to the remote process w
 as clients can no longer connect with it. For this reason, automation to monitor and auto-renew certificates close to expiration is
 well worth the investment.
 
-Encryption can generally be applied at different levels. These include:
-- **encryption-at-rest** - data is stored in an encrypted form to prevent unauthorized access. An example would be hard drive encryption. Often managed by the data storage provider. They might handle the encryption keys, which can be accessed internally by authorized personnel.
-- **encryption-in-transit** - data that is transmitted is encrypted before transmission and decrypted after reception to prevent unauthorized access during the transmission. TLS applies encryption-in-transit.
-- **end-to-end encryption** - encrypts data from the true sender to the final recipient such that no other party can access the data. The encryption keys are only available to the sender and receiver, and they have no visibility of each other's keys. Popular in messaging apps, secure emails, and services that prioritize privacy.
-
 ### Public Key Infrastructure
 A public key infrastructure (PKI) comprises roles and processes responsible for the management of digital certificates. This include the distribution, creation, and revocation of certificates. 
 
@@ -236,13 +272,13 @@ In public key cryptography, the encryption key is different from the decryption 
 ### Certificates 
 The purpose of certificates is to bind public key to an identity. This proves the identity of the public key owner.
 
-The certificate contains information about the subject Most importantly the **Common Name**, which is the domain name the public key belongs to. Additionally, each certificate has an expiry date and needs to be renewed belore it expires to remain valic.
+The certificate contains information about the subject. Most importantly the **Common Name**, which is the domain name the public key belongs to. Additionally, each certificate has an expiry date and needs to be renewed belore it expires to remain valid.
 
 This certificate ensures that when we encrypt a message with the public key, only the server will be able to decrypt it. 
 
 ### Certificate Authorities
 
-Certificate authorities (CAs) are entities that are explicitly allowed to issue certificates. They do this by cryptographically signing a certificate. The identity of the CA is proven by a **CA Certificate**. Just like any other cerfificate, CA certificates are signed by another CA. This continues until a root CA is reached. The chain from the root CA to the end-user's certificate is called the **certificate chain**. The root CA's identy is checed against a hardcoded set of trusted CAs in the so-called **certaicate store** to prevent forgery of root CA certificates.
+Certificate authorities (CAs) are entities that are explicitly allowed to issue certificates. They do this by cryptographically signing a certificate. The identity of the CA is proven by a **CA Certificate**. Just like any other cerfificate, CA certificates are signed by another CA. This continues until a root CA is reached. The chain from the root CA to the end-user's certificate is called the **certificate chain**. The root CA's identityy is checked against a hardcoded set of trusted CAs in the so-called **certaicate store** to prevent forgery of root CA certificates.
 
 ### OpenSSL
 OpenSSL is a robust, open-source toolkit that implements the Secure Sockets Layer (SSL) and Transport Layer Security (TLS) protocols, as well as a powerful library for a wide variety of cryptographic functions. It is widely used to secure data in transit (such as HTTPS connections) and to perform various cryptographic tasks, like encryption, decryption, and key generation.
@@ -255,19 +291,23 @@ of the data by calculating a message digest. A secure hash function
 is used to create a message authentication code (HMAC). When a
 process receives a message, it recomputes the digest of the message
 and checks whether it matches the digest included in the message.
-If not, then the message has either been corrupted during transmission or has been tampered with. In this case, the message is
+If not, then the message has either been corrupted during transmission 
+or has been tampered with. In this case, the message is
 dropped.
 
 The TLS HMAC protects against data corruption as well, not just
 tampering. You might be wondering how data can be corrupted if
 TCP is supposed to guarantee its integrity. While TCP does use a
-checksum to protect against data corruption, it’s not 100% reliable: it fails to detect errors for roughly 1 in 16 million to 10 billion pack-
-ets. With packets of 1 KB, this is expected to happen once per 16
+checksum to protect against data corruption, it’s not 100% reliable: 
+it fails to detect errors for roughly 1 in 16 million to 10 billion 
+packets. With packets of 1 KB, this is expected to happen once per 16
 GB to 10 TB transmitted.
 
 ## Handshake
 When a new TLS connection is established, a handshake between
 the client and server occurs during which:
+
+![ ](/Resources/images/https.png)
 
 1. The parties agree on the cipher suite to use. A cipher suite
 specifies the different algorithms that the client and the
@@ -285,7 +325,8 @@ secret to encrypt communication on the secure channel going
 forward.
 3. The client verifies the certificate provided by the server. The
 verification process confirms that the server is who it says it
-is. If the verification is successful, the client can start sending encrypted application data to the server. The server can
+is. If the verification is successful, the client can start sending 
+encrypted application data to the server. The server can
 optionally also verify the client certificate if one is available.
 These operations don’t necessarily happen in this order, as modern
 implementations use several optimizations to reduce round trips.
@@ -298,30 +339,33 @@ possible.
 # Discovery
 To create a new connection with a remote process, we must
 first discover its IP address somehow. The most common way of
-doing that is via the phone book of the internet: the Domain Name
-System (DNS) — a distributed, hierarchical, and eventually con-
-sistent key-value store.
+doing that is via the phone book of the internet: the *Domain Name
+System* (DNS) — a distributed, hierarchical, and eventually 
+consistent key-value store.
 
-When
-you enter a URL in your browser, the first step is to resolve the
+We will look at how DNS resolution works in a
+browser, but the process is similar for other types of clients. 
+When you enter a URL in your browser, the first step is to resolve the
 hostname’s IP address, which is then used to open a new TLS connection.
-DNS resolution:
-1. The browser checks its local cache to see whether it has resolved the hostname before. If so, it returns the cached IP
-address; otherwise, it routes the request to a DNS resolver, a server typically hosted by your Internet Service Provider (ISP).
 
-2. The resolver is responsible for iteratively resolving the hostname for its clients. The reason why it’s iterative will become
+DNS resolution:
+1. The browser checks its local cache to see whether it has resolved 
+the hostname before. If so, it returns the cached IP
+address; otherwise, it routes the request to a DNS resolver, 
+a server typically hosted by your Internet Service Provider (ISP).
+2. The resolver is responsible for iteratively resolving the hostname for its clients. 
+The reason why it’s iterative will become
 obvious in a moment. The resolver first checks its local cache
 for a cached entry, and if one is found, it’s returned to the
 client. If not, the query is sent to a root name server (root NS).
-
-3. The root name server maps the top-level domain (TLD) of the
+3. The root name server maps the *top-level domain* (TLD) of the
 request, i.e., .com, to the address of the name server responsible for it.
-The resolver sends a resolution request for example.com to the
+4. The resolver sends a resolution request for example.com to the
 TLD name server.
-The TLD name server maps the example.com domain name to
-the address of the authoritative name server responsible for the
+5. The TLD name server maps the example.com domain name to
+the address of the *authoritative name server* responsible for the
 domain.
-Finally, the resolver queries the authoritative name server for
+6. Finally, the resolver queries the authoritative name server for
 www.example.com, which returns the IP address of the www
 hostname.
 
@@ -331,23 +375,26 @@ returned the address of the name server responsible for the
 subdomain, and an additional request would be required.
 
 The original DNS protocol sent plain-text messages primarily over
-UDP for efficiency reasons. However, because this allows any-
-one monitoring the transmission to snoop, the industry has mostly
+UDP for efficiency reasons. However, because this allows 
+anyone monitoring the transmission to snoop, the industry has mostly
 moved to secure alternatives, such as DNS on top of TLS.
 
 The resolution process involves several round trips in the worst
 case, but its beauty is that the address of a root name server is
 all that’s needed to resolve a hostname. That said, the resolution
-would be slow if every request had to go through several name server lookups. Not only that, but think of the scale required for
+would be slow if every request had to go through several name server 
+lookups. Not only that, but think of the scale required for
 the name servers to handle the global resolution load. So caching
-is used to speed up the resolution process since the mapping of domain names to IP addresses doesn’t change often — the browser,
+is used to speed up the resolution process since the mapping of domain 
+names to IP addresses doesn’t change often — the browser,
 operating system, and DNS resolver all use caches internally.
 
 How do these caches know when to expire a record? Every DNS
-record has a time to live (TTL) that informs the cache how long the
+record has a *time to live* (TTL) that informs the cache how long the
 entry is valid for. But there is no guarantee that clients play nicely
 and enforce the TTL. So don’t be surprised when you change a
-DNS entry and find out that a small number of clients are still trying to connect to the old address long after the TTL has expired.
+DNS entry and find out that a small number of clients are still trying 
+to connect to the old address long after the TTL has expired.
 
 Setting a TTL requires making a tradeoff. If you use a long TTL,
 many clients won’t see a change for a long time. But if you set it too
@@ -355,9 +402,20 @@ short, you increase the load on the name servers and the average
 response time of requests because clients will have to resolve the
 hostname more often.
 
-If your name server becomes unavailable for any reason, then the smaller the record’s TTL is, the higher the number of clients impacted will be. DNS can easily become a single point of failure —
-if your DNS name server is down and clients can’t find the IP address of your application, they won’t be able to connect it. This can
+If your name server becomes unavailable for any reason, then the 
+smaller the record’s TTL is, the higher the number of clients 
+impacted will be. DNS can easily become a single point of failure —
+if your DNS name server is down and clients can’t find the IP 
+address of your application, they won’t be able to connect it. This can
 lead to massive outages.
+
+This brings us to an interesting observation. DNS could be a lot
+more robust to failures if DNS caches would serve stale entries
+when they can’t reach a name server, rather than treating TTLs
+as time bombs. Since entries rarely change, serving a stale entry is
+arguably a lot more robust than not serving any entry at all. The
+principle that a system should continue to function even when a
+dependency is impaired is also referred to as “static stability”;
 
 # APIs
 We want the client to invoke operations offered by the server.
