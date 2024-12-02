@@ -374,6 +374,8 @@ news.example.com, the authoritative name server would have
 returned the address of the name server responsible for the
 subdomain, and an additional request would be required.
 
+![ ](/Resources/images/dns.png)
+
 The original DNS protocol sent plain-text messages primarily over
 UDP for efficiency reasons. However, because this allows 
 anyone monitoring the transmission to snoop, the industry has mostly
@@ -419,12 +421,19 @@ dependency is impaired is also referred to as “static stability”;
 
 # APIs
 We want the client to invoke operations offered by the server.
-To that end, the server uses an *adapter* — which defines its application programming interface (API) — to translate messages received from the communication link to interface calls implemented
+To that end, the server uses an *adapter* — which defines its 
+application programming interface (API) — to translate messages 
+received from the communication link to interface calls implemented
 by its business logic. 
 
-The communication style between a client and a server can be direct or indirect, depending on whether the client communicates directly with the server or indirectly through a broker. Direct communication requires that both processes are up and running for the
+The communication style between a client and a server can be 
+direct or indirect, depending on whether the client communicates 
+directly with the server or indirectly through a broker. Direct 
+communication requires that both processes are up and running for the
 communication to succeed. However, sometimes this guarantee
-is either not needed or very hard to achieve, in which case indirect communication is a better fit. An example of indirect communication is messaging. In this model, the sender and the receiver
+is either not needed or very hard to achieve, in which case indirect 
+communication is a better fit. An example of indirect communication 
+is messaging. In this model, the sender and the receiver
 don’t communicate directly, but they exchange messages through
 a message channel (the broker).
 
@@ -583,7 +592,7 @@ should be the same as if it was executed just a single time. Idempotency is a cr
 | PATCH   | No   | No         | Conditional* |
 | CONNECT | No   | No         | No           |
 
-\* POST and PATCH are cacheable when responses explicitly include freshness information and a matching Content-Location header.
+POST and PATCH are cacheable when responses explicitly include freshness information and a matching Content-Location header.
 Freshness information is provided in HTTP headers, like Cache-Control or Expires. For example:
  
 > Cache-Control: max-age=3600  # Cache this response for one hour
