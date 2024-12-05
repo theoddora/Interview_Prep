@@ -427,25 +427,25 @@ received from the communication link to interface calls implemented
 by its business logic. 
 
 The communication style between a client and a server can be 
-direct or indirect, depending on whether the client communicates 
+*direct* or *indirect*, depending on whether the client communicates 
 directly with the server or indirectly through a broker. Direct 
 communication requires that both processes are up and running for the
 communication to succeed. However, sometimes this guarantee
 is either not needed or very hard to achieve, in which case indirect 
 communication is a better fit. An example of indirect communication 
-is messaging. In this model, the sender and the receiver
+is *messaging*. In this model, the sender and the receiver
 don’t communicate directly, but they exchange messages through
 a message channel (the broker).
 
-We will focus our attention on a direct communication style called *request-response*, in which a client sends a request
-message to the server, and the server replies with a response message.
+We will focus our attention on a direct communication style called *request-response*, in which a client sends a *request
+message* to the server, and the server replies with a *response message*.
 This is similar to a function call but across process boundaries and
 over the network.
 
 The request and response messages contain data that is serialized
 in a language-agnostic format. The choice of format determines
 a message’s serialization and deserialization speed, whether it’s
-human-readable, and how hard it is to evolve it over time. A textual format like JSON1 is self-describing and human-readable, at
+human-readable, and how hard it is to evolve it over time. A *textual* format like JSON is self-describing and human-readable, at
 the expense of increased verbosity and parsing overhead. On the
 other hand, a binary format like Protocol Buffers is leaner and
 more performant than a textual one at the expense of human readability.
@@ -487,12 +487,12 @@ the server replies back with a *response message*.
 
 In HTTP 1.1, a message is a textual block of data that contains a
 start line, a set of headers, and an optional body:
-* In a request message, the start line indicates what the request
+* In a request message, the *start line* indicates what the request
 is for, and in a response message, it indicates whether the
 request was successful or not.
-* The headers are key-value pairs with metadata that describes
+* The *headers* are key-value pairs with metadata that describes
 the message.
-* The message body is a container for data.
+* The message *body* is a container for data.
 
 HTTP is a stateless protocol, which means that everything needed
 by a server to process a request needs to be specified within the request itself, without context from previous requests. HTTP uses
@@ -502,7 +502,7 @@ runs on top of TLS, it’s also referred to as HTTPS.
 HTTP 1.1 keeps a connection to a server open by default to avoid
 needing to create a new one for the next transaction. However, a
 new request can’t be issued until the response to the previous one
-has been received (aka *head-of-line* blocking or HOL blocking); in
+has been received (aka *head-of-line blocking* or HOL blocking); in
 other words, the transactions have to be serialized. For example,
 a browser that needs to fetch several images to render an HTML
 page has to download them one at a time, which can be very inefficient.
@@ -514,8 +514,7 @@ because connections consume resources like memory and sockets.
 
 HTTP 2 was designed from the ground up to address the main
 limitations of HTTP 1.1. It uses a binary protocol rather than a
-textual one, allowing it to multiplex multiple concurrent request-
-response transactions (streams) on the same connection. In early
+textual one, allowing it to multiplex multiple concurrent request-response transactions (streams) on the same connection. In early
 2020 about half of the most-visited websites on the internet were
 using the new HTTP 2 standard.
 
@@ -550,6 +549,14 @@ Next follows the authority, which is separated from the scheme by the character 
 ### Parameters
 Those parameters are a list of key/value pairs separated with the & symbol. The Web server can use those parameters to do extra stuff before returning the resource. 
 
+URLs can also model relationships between resources. For example, since a product is a resource that belongs to the collection of
+products, the product with the unique identifier 42 could have the
+following relative URL: /products/42. And if the product also has
+a list of reviews associated with it, we could append its resource
+name to the product’s URL, i.e., /products/42/reviews. However, the
+API becomes more complex as the nesting of resources increases,
+so it’s a balancing act.
+
 Naming resources is only one part of the equation; we also have
 to serialize the resources on the wire when they are transmitted in
 the body of request and response messages. When a client sends a
@@ -560,12 +567,12 @@ for the response. Generally, in HTTP APIs, JSON is used to represent non-binary 
 
 ## Request methods
 
-HTTP requests can create, read, update, and delete (CRUD) resources using request methods. When a client makes a request to a
+HTTP requests can create, read, update, and delete (CRUD) resources using request *methods*. When a client makes a request to a
 server for a particular resource, it specifies which method to use.
 You can think of a request method as the verb or action to use on
 a resource.
 The most commonly used methods are POST, GET, PUT, and
-DELETE. For example, the API of our catalog service could be
+DELETE. For example, the API of a catalog service could be
 defined as follows:
 * POST /products — Create a new product and return the URL
 of the new resource.
@@ -576,8 +583,10 @@ can be used to filter, paginate, and sort the collection.
 * DELETE /products/42 — Delete product 42.
 
 Request methods can be categorized based on whether they are
-safe, cachabe and whether they are idempotent. A **safe** method should not
-have any visible side effects and can safely be cached. An **idempotent** method can be executed multiple times, and the end result
+safe, cachabe and whether they are idempotent. 
+* A **safe** method should not
+have any visible side effects and can safely be cached.
+* An **idempotent** method can be executed multiple times, and the end result
 should be the same as if it was executed just a single time. Idempotency is a crucial aspect of APIs.
 
 | Method  | Safe | Idempotent | Cacheable    |
@@ -624,33 +633,32 @@ In short, use POST for creating resources where the server assigns the URI, and 
 
 After the server has received a request, it needs to process it and
 send a response back to the client. The HTTP response contains a
-status code to communicate to the client whether the request succeeded or not. Different status code ranges have different meanings.
+*status code* to communicate to the client whether the request succeeded or not. Different status code ranges have different meanings.
 
 Status codes between 200 and 299 are used to communicate success. For example, 200 (OK) means that the request succeeded, and
 the body of the response contains the requested resource.
 
-Status codes between 300 and 399 are used for redirection. For example, 301 (Moved Permanently) means that the requested resource
-has been moved to a different URL specified in the response message Location header.
+Status codes between 300 and 399 are used for redirection. For example, 301 (*Moved Permanently*) means that the requested resource
+has been moved to a different URL specified in the response message *Location* header.
 
 Status codes between 400 and 499 are reserved for client errors. A request that fails with a client error will usually return the same
 error if it’s retried since the error is caused by an issue with the
 client, not the server. Because of that, it shouldn’t be retried. Some common client errors are:
-* 400 (Bad Request) — Validating the client-side input has
+* 400 (*Bad Request*) — Validating the client-side input has
 failed.
-* 401 (Unauthorized) — The client isn’t authenticated.
-* 403 (Forbidden) — The client is authenticated, but it’s not allowed to access the resource.
-* 404 (Not Found) — The server couldn’t find the requested re-
-source.
+* 401 (*Unauthorized*) — The client isn’t authenticated.
+* 403 (*Forbidden*) — The client is authenticated, but it’s not allowed to access the resource.
+* 404 (Not Found) — The server couldn’t find the requested resource.
 
 Status codes between 500 and 599 are reserved for server errors. A
 request that fails with a server error can be retried as the issue that caused it to fail might be temporary. These are some typical server
 status codes:
-* 500 (Internal Server Error) — The server encountered an un-
-expected error that prevented it from handling the request.
-* 502 (Bad Gateway) — The server, while acting as a gateway
+* 500 (*Internal Server Error*) — The server encountered an 
+unexpected error that prevented it from handling the request.
+* 502 (*Bad Gateway*) — The server, while acting as a gateway
 or proxy, received an invalid response from a downstream
-server it accessed while attempting to handle the request.13
-* 503 (Service Unavailable) — The server is currently unable to
+server it accessed while attempting to handle the request.
+* 503 (*Service Unavailable*) — The server is currently unable to
 handle the request due to a temporary overload or scheduled
 maintenance.
 
@@ -659,13 +667,24 @@ Now that we understand how to model an API with HTTP, we
 can write an adapter that handles HTTP requests by calling the
 business logic of the service. 
 
+```java
+interface CatalogService
+{
+List<Product> GetProducts(...);
+Product GetProduct(...);
+void AddProduct(...);
+void DeleteProduct(...);
+void UpdateProduct(...)
+}
+```
+
 So when the HTTP adapter receives a GET /products request to
 retrieve the list of all products, it will invoke the GetProducts(…)
 method and convert the result into an HTTP response. Although
 this is a simple example, you can see how the adapter connects the
 IPC mechanism (HTTP) to the business logic.
 
-We can generate a skeleton of the HTTP adapter by defining the API of the service with an interface definition language (IDL). An
+We can generate a skeleton of the HTTP adapter by defining the API of the service with an *interface definition language* (IDL). An
 IDL is a language-independent definition of the API that can be
 used to generate boilerplate code for the server-side adapter and
 client-side software development kits (SDKs) in your languages of
@@ -686,19 +705,19 @@ that requires all clients to be modified at once, some of which we
 might have no control over.
 
 There are two types of changes that can break compatibility, one at the endpoint level and another at the message level. For example, if we were to change the /products endpoint to /new-products,
-it would obviously break clients that haven’t been updated to support the new endpoint. The same applies when making a previ-
-ously optional query parameter mandatory.
+it would obviously break clients that haven’t been updated to support the new endpoint. The same applies when making a 
+previously optional query parameter mandatory.
 
 Changing the schema of request or response messages in a
 backward-incompatible way can also wreak havoc. For example,
 changing the type of the category property in the Product schema
 from string to number is a breaking change that would cause the
-old deserialization logic to blow up in clients. Similar arguments16
+old deserialization logic to blow up in clients. Similar arguments
 can be made for messages represented with other serialization
 formats, like Protocol Buffers.
 
 REST APIs should be versioned to support breaking changes,
-e.g., by prefixing a version number in the URLs (/v1/products/).
+e.g., by prefixing a version number in the URLs (*/v1/products/*).
 However, as a general rule of thumb, APIs should evolve in a
 backward-compatible way unless there is a very good reason.
 Although backward-compatible APIs tend not to be particularly
@@ -728,12 +747,11 @@ some kind of reconciliation logic that checks for duplicate products and removes
 how this introduces a lot of complexity for the client. Instead of
 pushing this complexity to the client, a better solution would be
 for the server to create the product only once by making the POST
-request idempotent, so that no matter how many times that spe-
-cific request is retried, it will appear as if it only executed once.
+request idempotent, so that no matter how many times that specific request is retried, it will appear as if it only executed once.
 
 For the server to detect that a request is a duplicate, it needs to be
 decorated with an idempotency key — a unique identifier (e.g., a
-UUID). The identifier could be part of a header, like Idempotency-Key in Stripe’s API1. For the server to detect duplicates, it needs to
+UUID). The identifier could be part of a header, like Idempotency-Key in Stripe’s API. For the server to detect duplicates, it needs to
 remember all the request identifiers it has seen by storing them in a
 database. When a request comes in, the server checks the database
 to see if the request ID is already present. If it’s not there, it adds
@@ -748,11 +766,8 @@ to the database, or it fails to process it without storing the request identifie
 
 If the request identifiers and the resources managed by the server
 are stored in the same database, we can guarantee atomicity with
-ACID transactions19. In other words, we can wrap the product cre-
-ation and request identifier log within the same database transac-
-tion in the POST handler. However, if the handler needs to make
-external calls to other services to handle the request, the imple-
-mentation becomes a lot more challenging, since it requires some
+ACID transactions. In other words, we can wrap the product creation and request identifier log within the same database transaction in the POST handler. However, if the handler needs to make
+external calls to other services to handle the request, the implementation becomes a lot more challenging, since it requires some
 form of coordination.
 
 Now, assuming the server can detect a duplicate request, how
@@ -760,13 +775,12 @@ should it be handled? In our example, the server could respond
 to the client with a status code that signals that the product
 already exists. But then the client would have to deal with this
 case differently than if it had received a successful response for
-the first POST request (201 Created). So ideally, the server should
+the first POST request (*201 Created*). So ideally, the server should
 return the same response that it would have returned for the very
 first request.
 
 When in doubt, it’s helpful to follow the principle of least astonishment.
 
-To summarize, an idempotent API makes it a lot easier to imple-
-ment clients that are robust to failures, since they can assume that
+To summarize, an idempotent API makes it a lot easier to implement clients that are robust to failures, since they can assume that
 requests can be retried on failure without worrying about all the
 possible edge cases.
