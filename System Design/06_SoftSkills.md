@@ -92,3 +92,17 @@ would result in a slight delay.”
 8. How often do you do a release? 
 9. How do you deal with tech debt?
 10. What is the team's biggest challenge?
+
+Whenever the interviewer asks “Do you have any questions for me?”, never skip this question.
+
+1. What is the team’s biggest challenge right now?
+1. What new tech is the team experimenting with?
+1. What is that one company project that you are excited about?
+1. What was an interesting work the team shipped recently?
+1. How do you measure the success of engineering initiatives?
+1. How does the team/company celebrate wins?
+1. What are some company traditions that you enjoy?
+
+Each of the above questions covers one interesting aspect of the role and team, pick one that is most important to you. I ask one of these questions because I am interested in innovation, culture, growth, dealing with failures, and decision DNA.
+
+Remember, it is important to ask questions in the interview for two reasons - first, it demonstrates your genuine interest in the role, position, and company; second, it allows you to get some super important insights about the role and company.
