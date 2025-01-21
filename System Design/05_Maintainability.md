@@ -25,6 +25,7 @@ In this part, we will explore some of the best practices for testing
 and operating large distributed applications.
 
 # Testing
+
 The longer it takes to detect a bug, the more expensive it becomes
 to fix. A software test can verify that some part of the application
 works as intended, catching bugs early in the process. But the real
@@ -44,6 +45,7 @@ if you want to be confident that your implementation behaves in
 a certain way, you have to add a test for it.
 
 ## Scope
+
 Tests come in different shapes and sizes. To begin with, we need
 to distinguish between the code paths a test is actually testing (aka
 system under test or SUT) from the ones that are being run. The
@@ -51,27 +53,28 @@ SUT represents the scope of the test. It determines whether the test
 is categorized as a unit test, an integration test, or an end-to-end
 test.
 
-A *unit* test validates the behavior of a small part of the codebase,
+A _unit_ test validates the behavior of a small part of the codebase,
 like an individual class. A good unit test should be relatively
 static in time and change only when the behavior of the SUT
 changes — refactoring, bug fixes, or new features shouldn’t break
 it. To achieve that, a unit test should:
-* use only the public interfaces of the SUT;
-* test for state changes in the SUT (not predetermined
-sequences of actions);
-* test for behaviors, i.e., how the SUT handles a given input
-when it’s in a specific state.
 
-An *integration* test has a larger scope than a unit test, since it verifies
+- use only the public interfaces of the SUT;
+- test for state changes in the SUT (not predetermined
+  sequences of actions);
+- test for behaviors, i.e., how the SUT handles a given input
+  when it’s in a specific state.
+
+An _integration_ test has a larger scope than a unit test, since it verifies
 that a service can interact with an external dependency as expected.
 Confusingly, integration testing has different meanings for different people. Martin Fowler makes the distinction between narrow
-and broad integration tests. A *narrow* integration test exercises
+and broad integration tests. A _narrow_ integration test exercises
 only the code paths of a service that communicate with a specific
 external dependency, like an adapter and its supporting classes. In
-contrast, a *broad* integration test exercises code paths across multiple live services. In the rest of the chapter, we will refer to these
+contrast, a _broad_ integration test exercises code paths across multiple live services. In the rest of the chapter, we will refer to these
 broader integration tests as end-to-end tests.
 
-An *end-to-end* test validates behavior that spans multiple services
+An _end-to-end_ test validates behavior that spans multiple services
 in the system, like a user-facing scenario. These tests usually run
 in shared environments, like staging or production, and therefore
 should not impact other tests or users sharing the same environment. Because of their scope, they are slow and more prone to
@@ -84,7 +87,7 @@ They can uncover issues that tests with smaller scope can’t, like
 unanticipated side effects and emergent behaviors.
 
 One way to minimize the number of end-to-end tests is to frame
-them as user journey tests. A *user journey test* simulates a multi-step interaction of a user with the system (e.g., for an e-commerce
+them as user journey tests. A _user journey test_ simulates a multi-step interaction of a user with the system (e.g., for an e-commerce
 service: create an order, modify it, and finally cancel it). Such a
 test usually requires less time to run than the individual journey
 parts split into separate end-to-end tests.
@@ -98,34 +101,36 @@ trade-off is to have a large number of unit tests, a smaller fraction
 of integration tests, and even fewer end-to-end tests.
 
 ## Size
+
 The size of a test reflects how much computing resources it needs
 to run, like the number of nodes. Generally, that depends on
 how realistic the environment is where the test runs. Although the scope and size of a test tend to be correlated, they are distinct
 concepts, and it helps to separate them.
 
-A *small test* runs in a single process and doesn’t perform any blocking calls or I/O. As a result, it’s very fast, deterministic, and has a
+A _small test_ runs in a single process and doesn’t perform any blocking calls or I/O. As a result, it’s very fast, deterministic, and has a
 very small probability of failing intermittently.
 
-An *intermediate test* runs on a single node and performs local I/O,
+An _intermediate test_ runs on a single node and performs local I/O,
 like reads from disk or network calls to localhost. This introduces
 more room for delays and non-determinism, increasing the likeli-
 hood of intermittent failures.
 
-A *large test* requires multiple nodes to run, introducing even more
+A _large test_ requires multiple nodes to run, introducing even more
 non-determinism and longer delays.
 
 Unsurprisingly, the larger a test is, the longer it takes to run and
 the flakier it becomes. This is why we should write the smallest
-possible test for a given behavior. We can use a *test double* in place
+possible test for a given behavior. We can use a _test double_ in place
 of a real dependency, such as a fake, a stub, or a mock, to reduce the
 test’s size, making it faster and less prone to intermittent failures:
-* A fake is a lightweight implementation of an interface that
-behaves similarly to a real one. For example, an in-memory
-version of a database is a fake.
-* A stub is a function that always returns the same value no
-matter which arguments are passed to it.
-* Finally, a mock has expectations on how it should be called,
-and it’s used to test the interactions between objects.
+
+- A fake is a lightweight implementation of an interface that
+  behaves similarly to a real one. For example, an in-memory
+  version of a database is a fake.
+- A stub is a function that always returns the same value no
+  matter which arguments are passed to it.
+- Finally, a mock has expectations on how it should be called,
+  and it’s used to test the interactions between objects.
 
 The problem with test doubles is that they don’t resemble how the
 real implementation behaves with all its nuances. The weaker the
@@ -137,7 +142,7 @@ or mocking, are last-resort options as they offer the least resemblance to the a
 them brittle.
 
 For integration tests, a good compromise is to combine mocking
-with contract tests. A *contract test* defines a request for an external
+with contract tests. A _contract test_ defines a request for an external
 dependency with the corresponding expected response. Then the
 test uses this contract to mock the dependency. For example, a con-
 tract for a REST API consists of an HTTP request and response. To
@@ -146,12 +151,14 @@ test suite of the external dependency uses the same contract definition to simul
 response is returned.
 
 ## Practical considerations
+
 As with everything else, testing requires making trade-offs. Suppose we want to end-to-end test the behavior of a specific API endpoint exposed by a service. The service talks to:
-* a data store,
-* an internal service owned by another team,
-* and a third-party API used for billing
-As suggested earlier, we should try to write the smallest possible test for the desired scope while minimizing the use of test doubles
-that don’t resemble how the real implementation behaves.
+
+- a data store,
+- an internal service owned by another team,
+- and a third-party API used for billing
+  As suggested earlier, we should try to write the smallest possible test for the desired scope while minimizing the use of test doubles
+  that don’t resemble how the real implementation behaves.
 
 Let’s assume the specific endpoint under test doesn’t communicate with the internal service, so we can safely use a mock in its
 place. And if the data store comes with an in-memory implementation (a fake), we can use that in the test to avoid issuing network
@@ -172,9 +179,10 @@ in production periodically and uses live services rather than test
 doubles.
 
 ## Formal verification
+
 Software tests are not the only way to catch bugs early. Taking the
 time to write a high-level description of how a system behaves, i.e.,
-a *specification*, allows subtle bugs and architecture shortcomings to
+a _specification_, allows subtle bugs and architecture shortcomings to
 be detected before writing a single line of code.
 
 A specification can range from an informal one-pager to a formal
@@ -184,7 +192,7 @@ can help us reason about the behaviors of the system we are designing. It also a
 for the actual implementation. On top of the benefits mentioned
 so far, by writing the specification in a formal language, we also
 gain the ability to verify algorithmically whether the specification
-is flawed (*model checking*).
+is flawed (_model checking_).
 
 Writing a specification doesn’t mean describing every corner of a
 system in detail. The specification’s goal is to catch errors while
@@ -197,12 +205,12 @@ details to omit.
 TLA+ is a well-known and widely used formal specification language. The likes of Amazon or Microsoft use it to describe some
 of their most complex distributed systems, like S3 or Cosmos DB.
 
-In TLA+, a *behavior* of a system is represented by a sequence of
+In TLA+, a _behavior_ of a system is represented by a sequence of
 states, where a state is an assignment of values to global variables.
 Thus, the specification of a system is the set of all possible behaviors.
 
-One of the goals of writing a specification is to verify that it satisfies properties we want the system to have, like safety and liveness. A *safety* property asserts that something is true for all states
-of a behavior (invariant). A *liveness* property instead asserts that
+One of the goals of writing a specification is to verify that it satisfies properties we want the system to have, like safety and liveness. A _safety_ property asserts that something is true for all states
+of a behavior (invariant). A _liveness_ property instead asserts that
 something eventually happens. TLA+ allows to describe and verify properties that should be satisfied by all possible states and behaviors of a specification. This is extremely powerful, since a system running at scale will eventually run into all possible states and
 behaviors, and humans are bad at imagining behaviors in which
 several rare events occur simultaneously.
@@ -212,12 +220,13 @@ X, and we would like to migrate it to use key-value store Y that
 costs less and has proven to perform better in benchmarks. At a
 high level, one way we could implement this migration without
 any downtime is the following:
+
 1. The service writes to both data stores X and Y (dual write)
-while reading exclusively from X.
+   while reading exclusively from X.
 2. A one-off batch process backfills Y with data from X created
-before the service started writing to Y.
+   before the service started writing to Y.
 3. The application switches to read and write exclusively from
-and to Y.
+   and to Y.
 
 This approach might seem reasonable, but will it guarantee that
 the data stores eventually end up in the same state?
@@ -241,6 +250,7 @@ actual solution, the point is that a formal model enables us to test
 architectural decisions that would be hard to verify otherwise.
 
 # Continuous delivery and deployment
+
 Once a change and its newly introduced tests have been merged to
 a repository, it needs to be released to production. When releasing
 a change requires a manual process, it won’t happen frequently.
@@ -271,6 +281,7 @@ it takes to release a change to production. A good CD pipeline
 should strive to make a good trade-off between the two.
 
 ## Review and build
+
 At a high level, a code change needs to go through a pipeline
 of four stages to be released to production: review, build,
 pre-production rollout, and production rollout.
@@ -284,13 +295,14 @@ before it can be merged into the repository. The reviewer has to
 validate whether the change is correct and safe to be released to
 production automatically by the CD pipeline. A checklist can help
 the reviewer not to forget anything important, e.g.:
-* Does the change include unit, integration, and end-to-end
-tests as needed?
-* Does the change include metrics, logs, and traces?
-* Can this change break production by introducing a
-backward-incompatible change or hitting some service
-limit?
-* Can the change be rolled back safely, if needed?
+
+- Does the change include unit, integration, and end-to-end
+  tests as needed?
+- Does the change include metrics, logs, and traces?
+- Can this change break production by introducing a
+  backward-incompatible change or hitting some service
+  limit?
+- Can the change be rolled back safely, if needed?
 
 Code changes shouldn’t be the only ones going through this review process. For example, static assets, end-to-end tests, and configuration files should all be version-controlled in a repository (not
 necessarily the same one) and be treated just like code. The same
@@ -311,6 +323,7 @@ the CD pipeline moves to the build stage, in which the repository’s
 content is built and packaged into a deployable release artifact.
 
 ## Pre-production
+
 During this stage, the artifact is deployed and released to a synthetic pre-production environment. Although this environment
 lacks the realism of production, it’s useful to verify that no hard
 failures are triggered (e.g., a null pointer exception at startup due
@@ -330,6 +343,7 @@ Metrics, alerts, and tests used in pre-production should be equivalent to those 
 second-class citizen with sub-par health coverage.
 
 ## Production
+
 Once an artifact has been rolled out to pre-production successfully,
 the CD pipeline can proceed to the final stage and release the artifact to production. It should start by releasing it to a small number
 of production instances at first (canary tests). The goal is to surface problems
@@ -355,6 +369,7 @@ region, the second to a larger region, and the third to N regions
 simultaneously.
 
 ## Rollbacks
+
 After each step, the CD pipeline needs to assess whether the artifact deployed is healthy and, if not, stop the release and roll it back.
 A variety of health signals can be used to make that decision, such
 as the result of end-to-end tests, health metrics like latencies and
@@ -392,23 +407,25 @@ be broken down into multiple backward-compatible changes. For
 example, suppose the messaging schema between a producer and
 a consumer service needs to change in a backward-incompatible
 way. In this case, the change is broken down into three smaller changes that can individually be rolled back safely:
-* In the *prepare change*, the consumer is modified to support
-both the new and old messaging format.
-* In the *activate change*, the producer is modified to write the
-messages in the new format.
-* Finally, in the cleanup change, the consumer stops supporting the old messaging format altogether. This change is only
-released once there is enough confidence that the activated
-change won’t need to be rolled back.
+
+- In the _prepare change_, the consumer is modified to support
+  both the new and old messaging format.
+- In the _activate change_, the producer is modified to write the
+  messages in the new format.
+- Finally, in the cleanup change, the consumer stops supporting the old messaging format altogether. This change is only
+  released once there is enough confidence that the activated
+  change won’t need to be rolled back.
 
 An automated upgrade-downgrade test part of the CD pipeline in
 pre-production can be used to validate whether a change is actually safe to roll back.
 
 # Monitoring
+
 **Monitoring is primarily used to detect failures that impact users
 in production and to trigger notifications (or alerts) to the human
 operators responsible for the system. Another important use case
 for monitoring is to provide a high-level overview of the system’s
-health via dashboards.** 
+health via dashboards.**
 
 In the early days, monitoring was used mostly to report whether
 a service was up, without much visibility of what was going on
@@ -421,7 +438,7 @@ monitoring can help identify the root cause.
 The main use case for black-box monitoring is to monitor external
 dependencies, such as third-party APIs, and validate how users
 perceive the performance and health of a service from the outside.
-A common black-box approach is to periodically run scripts (*synthetics*) that send test requests to external API endpoints and monitor how long they took and whether they were successful. Synthetics are deployed in the same regions the application’s users are
+A common black-box approach is to periodically run scripts (_synthetics_) that send test requests to external API endpoints and monitor how long they took and whether they were successful. Synthetics are deployed in the same regions the application’s users are
 and hit the same endpoints they do. Because they exercise the system’s public surface from the outside, they can catch issues that
 aren’t visible from within the application, like connectivity problems. Synthetics are also useful for detecting issues with APIs that
 aren’t exercised often by users.
@@ -430,13 +447,14 @@ For example, if the DNS server of a service were down, the issue
 would be visible to synthetics, since they wouldn’t be able to resolve its IP address. However, the service itself would think everything was fine, and it was just getting fewer requests than usual.
 
 ## Metrics
-A **metric** is a time series of raw measurements (*samples*) of resource
+
+A **metric** is a time series of raw measurements (_samples_) of resource
 usage (e.g., CPU utilization) or behavior (e.g., number of requests
 that failed), where each sample is represented by a floating-point
 number and a timestamp.
 
 Commonly, a metric can also be tagged with a set of key-value
-pairs (*labels*). For example, the label could represent the region,
+pairs (_labels_). For example, the label could represent the region,
 data center, cluster, or node where the service is running. Labels
 make it easy to slice and dice the data and eliminate the instrumentation cost of manually creating a metric for each label combination. However, because every distinct combination of labels
 is a different metric, tagging generates a large number of metrics,
@@ -472,7 +490,7 @@ percentiles.
 
 Going back to our example, the telemetry service could pre-aggregate the failure count events at ingestion time. If the
 aggregation (i.e., the sum in our example) were to happen with
-a period of one hour, we would have one *failureCount* metric per
+a period of one hour, we would have one _failureCount_ metric per
 serviceRegion, each containing one sample per hour.
 
 The ingestion service could also create multiple pre-aggregates
@@ -495,6 +513,7 @@ Because metrics are mainly used for alerting and visualization purposes, they ar
 store specialized for efficient time series storage.
 
 ## Service-level indicators
+
 As noted before, one of the main use cases for metrics is alerting.
 But that doesn’t mean we should create alerts for every possible
 metric — for example, it’s useless to be alerted in the middle of the
@@ -502,8 +521,8 @@ night because a service had a big spike in memory consumption a
 few minutes earlier.
 
 We will discuss one specific metric category that
-lends itself well to alerting: *service-level indicators *(SLIs). An SLI is
-a metric that measures one aspect of the *level of service* provided by
+lends itself well to alerting: _service-level indicators _(SLIs). An SLI is
+a metric that measures one aspect of the _level of service_ provided by
 a service to its users, like the response time, error rate, or throughput. SLIs are typically aggregated over a rolling time window and
 represented with a summary statistic, like an average or percentile.
 
@@ -511,11 +530,12 @@ SLIs are best defined as a ratio of two metrics: the number of “good
 events” over the total number of events. That makes the ratio easy to interpret: 0 means the service is completely broken and 1 that
 whatever is being measured is working as expected. Ratios also simplify the
 configuration of alerts. Some commonly used SLIs for services are:
-* *Response time* — The fraction of requests that are completed
-faster than a given threshold.
-* *Availability* — The proportion of time the service was usable,
-defined as the number of successful requests over the total
-number of requests.
+
+- _Response time_ — The fraction of requests that are completed
+  faster than a given threshold.
+- _Availability_ — The proportion of time the service was usable,
+  defined as the number of successful requests over the total
+  number of requests.
 
 Once we have decided what to measure, we need to decide where
 to measure it. Take the response time, for example. Should we
@@ -563,7 +583,8 @@ tuitively, by reducing the long-tail latency (worst-case scenario),
 we also happen to improve the average-case scenario.
 
 ## Service-level objectives
-A *service-level objective* (SLO) defines a range of acceptable values
+
+A _service-level objective_ (SLO) defines a range of acceptable values
 for an SLI within which the service is considered to be in a healthy
 state. An SLO sets the expectation to the service’s users of how it should behave when it’s functioning cor-
 rectly. Service owners can also use SLOs to define a service-level
@@ -574,7 +595,7 @@ in financial consequences.
 For example, an SLO could define that 99% of API calls to endpoint X should complete below 200 ms, as measured over a rolling
 window of 1 week. Another way to look at it is that it’s acceptable
 for up to 1% of requests within a rolling week to have a latency
-higher than 200 ms. That 1% is also called the *error budget*, which
+higher than 200 ms. That 1% is also called the _error budget_, which
 represents the number of failures that can be tolerated.
 
 SLOs are helpful for alerting purposes and also help the team prioritize repair tasks. For example, the team could agree that when an error budget is exhausted, repair items will take precedence over
@@ -584,7 +605,7 @@ been burned. For example, an incident that burned 20% of the error budget is mor
 
 Smaller time windows force the team to act quicker and prioritize bug fixes and repair items, while longer windows are better
 suited to make long-term decisions about which projects to invest in. Consequently, it makes sense to have multiple SLOs with dif-
-ferent window sizes. 
+ferent window sizes.
 
 How strict should SLOs be? Choosing the right target range is
 harder than it looks. If it’s too lenient, we won’t detect user-facing
@@ -623,6 +644,7 @@ ensure the dependencies can cope with the targeted service level
 and are not making unrealistic assumptions. As an added benefit, they also help validate that resiliency mechanisms work as expected.
 
 ## Alerts
+
 Alerting is the part of a monitoring system that triggers an action
 when a specific condition happens, like a metric crossing a threshold. Depending on the severity and the type of the alert, the action
 can range from running some automation, like restarting a service
@@ -632,13 +654,13 @@ In the rest of this section, we will mostly focus on the latter case.
 For an alert to be useful, it has to be actionable. The operator
 shouldn’t spend time exploring dashboards to assess the alert’s
 impact and urgency. For example, an alert signaling a spike in
-CPU usage is not useful as it’s not clear whether it has any impact 
+CPU usage is not useful as it’s not clear whether it has any impact
 on the system without further investigation. On the other hand,
 an SLO is a good candidate for an alert because it quantifies the
 impact on the users. The SLO’s error budget can be monitored to
 trigger an alert whenever a large fraction of it has been consumed.
 
-Before discussing how to define an alert, it’s important to understand that there is a trade-off between its precision and recall. Formally, *precision* is the fraction of significant events (i.e., actual issues) over the total number of alerts, while *recall* is the ratio of
+Before discussing how to define an alert, it’s important to understand that there is a trade-off between its precision and recall. Formally, _precision_ is the fraction of significant events (i.e., actual issues) over the total number of alerts, while _recall_ is the ratio of
 significant events that triggered an alert. Alerts with low precision are noisy and often not actionable, while alerts with low recall
 don’t always trigger during an outage. Although it would be nice
 to have 100% precision and recall, improving one typically lowers
@@ -659,7 +681,7 @@ We can improve the alert’s precision by increasing the amount
 of time the condition needs to be true. The problem is that now
 the alert will take longer to trigger, even during an actual outage.
 The alternative is to alert based on how fast the error budget is
-burning, also known as the *burn rate*, which lowers the detection
+burning, also known as the _burn rate_, which lowers the detection
 time. The burn rate is defined as the percentage of the error
 budget consumed over the percentage of the SLO time window
 that has elapsed — it’s the rate of exhaustion of the error budget.
@@ -683,6 +705,7 @@ case, as a temporary mitigation, we could define an alert that triggers an autom
 of memory.
 
 ## Dashboards
+
 After alerting, the other main use case for metrics is to power real-time dashboards that display the overall health of a system. Unfortunately, dashboards can easily become a dumping ground for
 charts that end up being forgotten, have questionable usefulness,
 or are just plain confusing. Good dashboards don’t happen by coincidence. In this section, we will discuss some of the best practices
@@ -694,6 +717,7 @@ given the audience, we can work backward to decide which charts,
 and therefore metrics, to include.
 
 ### SLO dashboard
+
 The SLO summary dashboard is designed to be used by various
 stakeholders from across the organization to gain visibility into the
 system’s health as represented by its SLOs. During an incident,
@@ -701,20 +725,24 @@ this dashboard quantifies the impact the incident is having on the
 users.
 
 ### Public API dashboard
+
 This dashboard displays metrics about the system’s public API
 endpoints, which helps operators identify problematic paths during an incident. For each endpoint, the dashboard exposes several metrics related to request messages, request handling, and response messages, like:
-* Number of requests received or messages pulled from a messaging broker, request size statistics, authentication issues,
-etc.
-* Request handling duration, availability and response time of
-external dependencies, etc.
-* Counts per response type, size of responses, etc.
+
+- Number of requests received or messages pulled from a messaging broker, request size statistics, authentication issues,
+  etc.
+- Request handling duration, availability and response time of
+  external dependencies, etc.
+- Counts per response type, size of responses, etc.
 
 ### Service dashboard
+
 A service dashboard displays service-specific implementation details, which require an in-depth understanding of its inner workings. Unlike the previous dashboards, this one is primarily used
 by the team that owns the service. Beyond service-specific metrics,
 a service dashboard should also contain metrics of upstream dependencies like load balancers and messaging queues and downstream dependencies like data stores.
 
 ### Best practices
+
 As new metrics are added and old ones removed, charts and dashboards need to be modified and kept in sync across multiple environments (e.g., pre-production and production). The most effective way to achieve that is by defining dashboards and charts with
 a domain-specific language and version-controlling them just like
 code. This allows dashboards to be updated from the same pull
@@ -740,7 +768,7 @@ charts slow to download/render but also makes it hard to interpret
 them and spot anomalies.
 
 A chart should contain only metrics with similar ranges (min and
-max values); otherwise, the metric with the largest range can 
+max values); otherwise, the metric with the largest range can
 completely hide the others with smaller ranges. For that reason, it
 makes sense to split related statistics for the same metric into
 multiple charts. For example, the 10th percentile, average and 90th
@@ -748,10 +776,11 @@ percentile of a metric can be displayed in one chart, and the 0.1th
 percentile, 99.9th percentile, minimum and maximum in another.
 
 A chart should also contain useful annotations, like:
-* a description of the chart with links to runbooks, related
-dashboards, and escalation contacts;
-* a horizontal line for each configured alert threshold, if any;
-* a vertical line for each relevant deployment.
+
+- a description of the chart with links to runbooks, related
+  dashboards, and escalation contacts;
+- a horizontal line for each configured alert threshold, if any;
+- a vertical line for each relevant deployment.
 
 Metrics that are only emitted when an error condition occurs can
 be hard to interpret as charts will show wide gaps between the
@@ -761,15 +790,16 @@ practice to emit a metric using a value of zero in the absence of an
 error and a value of 1 in the presence of it.
 
 ## Being on call
+
 A healthy on-call rotation is only possible when services are built
 from the ground up with reliability and operability in mind. By
 making the developers responsible for operating what they build,
 they are incentivized to reduce the operational toll to a minimum.
-They are also in the best position to be on call since they are 
+They are also in the best position to be on call since they are
 intimately familiar with the system’s architecture, brick walls, and
 trade-offs.
 
-Being on call can be very stressful. Even when there are no 
+Being on call can be very stressful. Even when there are no
 callouts, just the thought of not having the usual freedom outside of
 regular working hours can cause a great deal of anxiety. This is
 why being on call should be compensated, and there shouldn’t be
@@ -788,16 +818,16 @@ shared channel like a global chat accessible by other teams. This
 allows other engineers to chime in, track the incident’s progress,
 and more easily hand over an ongoing incident to someone else.
 
-The first step to address an alert is to mitigate it, not fix the 
+The first step to address an alert is to mitigate it, not fix the
 underlying root cause that created it. A new artifact has been rolled out
 that degrades the service? Roll it back. The service can’t cope with
 the load even though it hasn’t increased? Scale it out.
 
-Once the incident has been mitigated, the next step is to 
+Once the incident has been mitigated, the next step is to
 understand the root cause and come up with ways to prevent it from
-happening again. The greater the impact was, as measured by 
+happening again. The greater the impact was, as measured by
 the SLOs, the more time we should spend on this. Incidents that
-burned a significant fraction of an SLO’s error budget require a 
+burned a significant fraction of an SLO’s error budget require a
 formal postmortem. The goal of the postmortem is to understand the
 incident’s root cause and come up with a set of repair items that
 will prevent it from happening again. Ideally, there should also be
@@ -807,12 +837,13 @@ working on new features to focus exclusively on reliability until a
 healthy on-call rotation has been restored.
 
 # Observability
+
 A distributed system is never 100% healthy since, at any given
 time, there is always something failing. A whole range of failure
 modes can be tolerated, thanks to relaxed consistency models and
-resiliency mechanisms like rate limiting, retries, and circuit 
+resiliency mechanisms like rate limiting, retries, and circuit
 breakers. But, unfortunately, they also increase the system’s complexity.
-And with more complexity, it becomes increasingly harder to 
+And with more complexity, it becomes increasingly harder to
 reason about the multitude of emergent behaviors the system might
 experience, which are impossible to predict up front.
 
@@ -823,7 +854,7 @@ operator makes a hypothesis and tries to validate it. For example,
 the operator might get suspicious after noticing that the variance of
 their service’s response time has increased slowly but steadily over
 the past weeks, indicating that some requests take much longer
-than others. After correlating the increase in variance with an 
+than others. After correlating the increase in variance with an
 increase in traffic, the operator hypothesizes that the service is
 getting closer to hitting a constraint, like a resource limit. But metrics
 and charts alone won’t help to validate this hypothesis.
@@ -834,39 +865,40 @@ time it takes to validate hypotheses. This requires granular events
 with rich contexts since it’s impossible to know up front what will
 be useful in the future.
 
-At the core of observability, we find **telemetry** sources like *metrics*,
-*event logs*, and *traces*. Metrics are stored in time-series data stores
+At the core of observability, we find **telemetry** sources like _metrics_,
+_event logs_, and _traces_. Metrics are stored in time-series data stores
 that have high throughput but struggle with high dimensionality.
 Conversely, event logs and traces end up in stores that can handle
 high-dimensional data1 but struggle with high throughput. Met-
 rics are mainly used for monitoring, while event logs and traces
 are mainly for debugging.
 
-Observability is a superset of monitoring. While monitoring is focused 
+Observability is a superset of monitoring. While monitoring is focused
 exclusively on tracking a system’s health, observability also
 provides tools to understand and debug the system. For example,
 monitoring on its own is good at detecting failure symptoms but
 less so at explaining their root cause.
 
 ## Logs
-A *log* is an immutable list of time-stamped events that happened
-over time. An *event* can have different formats. In its simplest
-form, it’s just free-form text. It can also be structured and 
-represented with a textual format like JSON or a binary one like 
+
+A _log_ is an immutable list of time-stamped events that happened
+over time. An _event_ can have different formats. In its simplest
+form, it’s just free-form text. It can also be structured and
+represented with a textual format like JSON or a binary one like
 Protobuf.
 
 Logs can originate from our services or external dependencies, like
-message brokers, proxies, data stores, etc. Most languages offer 
+message brokers, proxies, data stores, etc. Most languages offer
 libraries that make it easy to emit structured logs. Logs are typically
 dumped to disk files, which are sent by an agent to an external log
 collector asynchronously, like an ELK stac2 or AWS CloudWatch
 logs.
 
-Logs provide a wealth of information about everything that’s 
+Logs provide a wealth of information about everything that’s
 happening in a service, assuming it was instrumented properly. They
 are particularly helpful for debugging purposes, as they allow us
 to trace back the root cause from a symptom, like a service instance
-crash. They also help investigate long-tail behaviors that are 
+crash. They also help investigate long-tail behaviors that are
 invisible to metrics summarized with averages and percentiles, which
 can’t explain why a specific user request is failing.
 
@@ -880,7 +912,7 @@ the service instance stops working correctly.
 
 Ingesting, processing, and storing massive troves of data is not
 cheap either, no matter whether we plan to do this in-house or use
-a third-party service. Although structured binary logs are more 
+a third-party service. Although structured binary logs are more
 efficient than textual ones, they are still expensive due to their high
 dimensionality.
 
@@ -889,8 +921,9 @@ ratio because they are fine-grained and service-specific, making it
 challenging to extract useful information.
 
 ### Best practices
+
 To make the job of the engineer drilling into the logs less painful,
-all the data about a specific *work unit* should be stored in a single
+all the data about a specific _work unit_ should be stored in a single
 event. A work unit typically corresponds to a request or a message
 pulled from a queue. To effectively implement this pattern, code
 paths handling work units need to pass around a context object
@@ -902,36 +935,37 @@ failed. It should also include measurements, like how long specific
 operations took. In addition, every network call performed within
 the work unit needs to be instrumented and log, e.g., its response
 time and status code. Finally, data logged to the event should be
-sanitized and stripped of potentially sensitive properties that 
+sanitized and stripped of potentially sensitive properties that
 developers shouldn’t have access to, like users’ personal data.
 
 Collating all data within a single event for a work unit minimizes
 the need for joins but doesn’t completely eliminate it. For example,
 if a service calls another downstream, we will have to perform a
-join to correlate the caller’s event log with the callee’s one to 
+join to correlate the caller’s event log with the callee’s one to
 understand why the remote call failed. To make that possible, every
 event should include the identifier of the request (or message) for
 the work unit.
 
 ### Costs
-There are various ways to keep the costs of logging under control. 
+
+There are various ways to keep the costs of logging under control.
 A simple approach is to have different logging levels (e.g.,
-debug, info, warning, error) controlled by a dynamic knob that 
+debug, info, warning, error) controlled by a dynamic knob that
 determines which ones are emitted. This allows operators to increase
 the logging verbosity for investigation purposes and reduce costs
 when granular logs aren’t needed.
 
 Sampling is another tool at our disposal for reducing verbosity.
-For example, a service could log only every nth event. 
-Additionally, events can also be prioritized based on their expected 
-signal-to-noise ratio: logging failed requests should have a higher 
+For example, a service could log only every nth event.
+Additionally, events can also be prioritized based on their expected
+signal-to-noise ratio: logging failed requests should have a higher
 sampling frequency than logging successful ones.
 
 The options discussed so far only reduce the logging verbosity on
 a single node. As we scale out and add more nodes, the logging
 volume will necessarily increase. Even with the best intentions,
 someone could check in a bug that leads to excessive logging. To
-avoid costs soaring through the roof or overloading our log 
+avoid costs soaring through the roof or overloading our log
 collector service, log collectors need to be able to rate-limit requests.
 
 Of course, we can always decide to create in-memory aggregates
@@ -940,10 +974,11 @@ just those rather than raw logs. However, by doing so, we trade
 off the ability to drill down into the aggregates if needed.
 
 ## Traces
+
 Tracing captures the entire lifespan of a request as it propagates
-throughout the services of a distributed system. A *trace* is a list
-of causally-related spans that represent the execution flow of a 
-request in a system. A *span* represents an interval of time that maps
+throughout the services of a distributed system. A _trace_ is a list
+of causally-related spans that represent the execution flow of a
+request in a system. A _span_ represents an interval of time that maps
 to a logical operation or work unit and contains a bag of key-value
 pairs.
 
@@ -960,18 +995,19 @@ longing to the same trace. Popular distributed tracing collectors
 include Open Zipkin and AWS X-ray.
 
 Traces allow developers to:
-* debug issues affecting very specific requests, which can be
-used to investigate failed requests raised by customers in
-support tickets;
-* debug rare issues that affect only an extremely small fraction
-of requests;
-* debug issues that affect a large fraction of requests that have
-something in common, like high response times for requests
-that hit a specific subset of service instances;
-* identify bottlenecks in the end-to-end request path;
-* identify which users hit which downstream services and
-in what proportion (also referred to as *resource attribution*),
-which can be used for rate-limiting or billing purposes.
+
+- debug issues affecting very specific requests, which can be
+  used to investigate failed requests raised by customers in
+  support tickets;
+- debug rare issues that affect only an extremely small fraction
+  of requests;
+- debug issues that affect a large fraction of requests that have
+  something in common, like high response times for requests
+  that hit a specific subset of service instances;
+- identify bottlenecks in the end-to-end request path;
+- identify which users hit which downstream services and
+  in what proportion (also referred to as _resource attribution_),
+  which can be used for rate-limiting or billing purposes.
 
 Tracing is challenging to retrofit into an existing system since it
 requires every component in the request path to be modified to
@@ -981,6 +1017,7 @@ tracing; third-party frameworks, libraries, and services need to as
 well.
 
 ## Putting it all together
+
 The main drawback of event logs is that they are fine-grained and
 service-specific. When a user request flows through a system, it
 can pass through several services. A specific event only contains
@@ -990,14 +1027,14 @@ a single event doesn’t give much information about the health or
 state of a specific service.
 
 This is where metrics and traces come in. We can think of them
-as abstractions, or derived views, built from event logs and 
-optimized for specific use cases. A metric is a time series of 
+as abstractions, or derived views, built from event logs and
+optimized for specific use cases. A metric is a time series of
 summary statistics derived by aggregating counters or observations
 over multiple events. For example, we could emit counters in
 events and have the backend roll them up into metrics as they are
 ingested. In fact, this is how some metric-collection systems work.
 
-Similarly, a trace can be derived by aggregating all events 
+Similarly, a trace can be derived by aggregating all events
 belonging to the lifecycle of a specific user request into an ordered list.
 Just like in the previous case, we can emit individual span events
 and have the backend aggregate them together into traces.

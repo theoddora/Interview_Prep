@@ -7,6 +7,7 @@ power outages, hardware faults, software crashes, memory leaks
 — you name it.
 
 # Common failure causes
+
 We say that a system has a **failure** when it no longer provides a
 service to its users that meets its specification. A failure is caused
 by a **fault**: a failure of an internal component or an external dependency the system depends on. Some faults can be tolerated and
@@ -16,6 +17,7 @@ To build fault-tolerant applications, we first need to have an idea
 of what can go wrong.
 
 ## Hardware faults
+
 Any physical part of a machine can fail. HDDs, memory modules,
 power supplies, motherboards, SSDs, NICs, or CPUs, can all stop
 working for various reasons. In some cases, hardware faults can
@@ -27,6 +29,7 @@ the main cause for distributed applications failing, but in reality,
 they often fail for very mundane reasons.
 
 ## Incorrect error handling
+
 A study from 2014 of user-reported failures from five popular distributed data stores found that the majority of catastrophic failures
 were the result of incorrect handling of non-fatal errors.
 
@@ -36,6 +39,7 @@ And some other handlers were only partially implemented and
 even contained “FIXME” and “TODO” comments.
 
 ## Configuration changes
+
 Configuration changes are one of the leading root causes for catastrophic failures. It’s not just misconfigurations that cause problems, but also valid configuration changes to enable rarely-used
 features that no longer work as expected (or never did).
 
@@ -49,6 +53,7 @@ tested, and released just like code changes, and their validation
 should happen preventively when the change happens.
 
 ## Single points of failure
+
 A single point of failure (SPOF) is a component whose failure
 brings the entire system down with it. In practice, systems can
 have multiple SPOFs.
@@ -76,6 +81,7 @@ fails. Many of the resiliency patterns we will discuss later reduce
 the blast radius of failures.
 
 ## Network faults
+
 When a client sends a request to a server, it expects to receive a
 response from it a while later. In the best case, it receives the response shortly after sending the request. If that doesn’t happen,
 the client has two options: continue to wait or fail the request with
@@ -95,6 +101,7 @@ or accurately. Because of their nature, gray failures can easily bring
 an entire system down to its knees.
 
 ## Resource leaks
+
 From an observer’s point of view, a very slow process is not very
 different from one that isn’t running at all — neither can perform
 useful work. Resource leaks are one of the most common causes
@@ -131,6 +138,7 @@ threads, and sockets. The libraries your application depends on
 use the same resources, and they can hit the same issues we just discussed.
 
 ## Load pressure
+
 Every system has a limit of how much load it can withstand, i.e.,
 its capacity. So when the load directed to the system continues
 to increase, it’s bound to hit that limit sooner or later. But an organic increase in load, that gives the system the time to scale out
@@ -139,24 +147,27 @@ and unexpected flood is another.
 
 For example, consider the number of requests received by an application in a period of time. The rate and the type of incoming
 requests can change over time, and sometimes suddenly, for a variety of reasons:
-* The requests might have a seasonality. So, for example, depending on the hour of the day, the application is hit by users
-in different countries.
-* Some requests are much more expensive than others and
-abuse the system in unexpected ways, like scrapers slurping
-in data at super-human speed.
-* Some requests are malicious, like those of DDoS attacks that
-try to saturate the application’s bandwidth to deny legitimate users access to it.
+
+- The requests might have a seasonality. So, for example, depending on the hour of the day, the application is hit by users
+  in different countries.
+- Some requests are much more expensive than others and
+  abuse the system in unexpected ways, like scrapers slurping
+  in data at super-human speed.
+- Some requests are malicious, like those of DDoS attacks that
+  try to saturate the application’s bandwidth to deny legitimate users access to it.
 
 While some load surges can be handled by automation that adds
 capacity (e.g., autoscaling), others require the system to reject requests to shield it from overloading.
 
 ## Cascading failures
+
 You would think that if a system has hundreds of processes, it
 shouldn’t make much of a difference if a small percentage are slow
 or unreachable. The thing about faults is that they have the potential to spread virally and cascade from one process to the other
 until the whole system crumbles to its knees. This happens when system components depend on each other, and a failure in one increases the probability of failure in others.
 
 ## Managing risk
+
 As it should be evident by now, a distributed application needs to
 accept that faults are inevitable and be prepared to detect, react to,
 and repair them as they occur.
@@ -173,6 +184,7 @@ Once we decide that we need to do something about a specific fault,
 we can try to reduce its probability and/or reduce its impact.
 
 # Redundancy
+
 Redundancy, the replication of functionality or state, is arguably
 the first line of defense against failures. When functionality or state
 is replicated over multiple nodes and a node fails, the others can
@@ -183,10 +195,11 @@ Redundancy is the main reason why distributed applications can
 achieve better availability than single-node applications. But only
 some forms of redundancy actually improve availability. Marc
 Brooker lists four prerequisites:
+
 1. The complexity added by introducing redundancy mustn’t
-cost more availability than it adds.
+   cost more availability than it adds.
 2. The system must reliably detect which of the redundant com-
-ponents are healthy and which are unhealthy.
+   ponents are healthy and which are unhealthy.
 3. The system must be able to run in degraded mode.
 4. The system must be able to return to fully redundant mode.
 
@@ -220,6 +233,7 @@ by now that meeting the above requisites is a lot more challenging
 for a stateful service than for a stateless one.
 
 ## Correlation
+
 Redundancy is only helpful when the redundant nodes can’t fail
 for the same reason at the same time, i.e., when failures are not correlated. For example, if a faulty memory module causes a server
 to crash, it’s unlikely other servers will fail simultaneously for the
@@ -251,7 +265,7 @@ Taking it to the extreme, a catastrophic event could destroy an en-
 tire region with all of its AZs. To tolerate that, we can duplicate
 the entire application stack in multiple regions. To distribute the
 traffic to different data centers located in different regions, we can
-use *global DNS load balancing*. Unlike earlier, the application’s state
+use _global DNS load balancing_. Unlike earlier, the application’s state
 needs to be replicated asynchronously across regions given the
 high network latency between regions.
 
@@ -261,6 +275,7 @@ For example, there are laws mandating that the data of European
 customers has to be processed and stored within Europe.
 
 # Fault isolation
+
 So far, we have discussed how to address infrastructure faults with
 redundancy, but there are other kinds of failures that we can’t tolerate with redundancy alone because of their high degree of corre-
 lation.
@@ -294,24 +309,24 @@ one compartment is damaged and fills up with water, the leak is
 isolated to that partition and doesn’t spread to the rest of the ship.
 
 ## Shuffle sharding
-What is sharding? Breaking up large tables into partitions and storing each partition on separate servers is called "sharding". 
 
-| Aspect                   | Sharding                                                                                  | Partitioning                                                                                     |
-|--------------------------|------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| **Definition**           | Dividing a database into smaller, independent databases (shards) for horizontal scaling. | Dividing data into smaller, more manageable pieces (partitions) within a single or multiple databases. |
-| **Primary Use Case**     | Horizontal scaling of databases to handle large datasets and high throughput.            | Improving database performance and manageability.                                                |
-| **Scope**                | Distributed systems.                                                                     | Single or distributed databases.                                                                |
-| **Independence**         | Each shard is a separate database, functioning independently.                            | Partitions may or may not be independent.                                                       |
-| **Common Use Case**      | Distributed data storage across multiple servers for scalability.                        | Organizing data for optimized query performance or ease of maintenance.                         |
-| **Key Usage**            | Sharding key determines in which shard a data piece resides.                             | Partition key determines the division of data within partitions.                                |
-| **Partitioning Type**    | Always horizontal (dividing rows).                                                       | Horizontal (rows) or vertical (columns).                                                        |
-| **Implementation**       | More complex, involving middleware or application logic for routing queries.             | Simpler, often built-in features of relational databases.                                       |
-| **Data Location**        | Shards typically reside on different servers or nodes.                                   | Partitions may reside on the same or different servers.                                         |
-| **Fault Isolation**      | High: Failure in one shard doesn’t affect others.                                        | May depend on how partitions are distributed and managed.                                       |
-| **Advantages**           | Scalability, load balancing, fault isolation.                                            | Improved query performance, easier data maintenance, and archiving.                            |
-| **Challenges**           | Complex setup, hotspot management, requires careful design of sharding keys.             | May require additional indexing, consistency management across partitions if distributed.       |
-| **Common in**            | NoSQL databases (e.g., MongoDB, Cassandra) but also used in relational databases.        | Relational databases (e.g., MySQL, PostgreSQL, Oracle).                                         |
+What is sharding? Breaking up large tables into partitions and storing each partition on separate servers is called "sharding".
 
+| Aspect                | Sharding                                                                                 | Partitioning                                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Definition**        | Dividing a database into smaller, independent databases (shards) for horizontal scaling. | Dividing data into smaller, more manageable pieces (partitions) within a single or multiple databases. |
+| **Primary Use Case**  | Horizontal scaling of databases to handle large datasets and high throughput.            | Improving database performance and manageability.                                                      |
+| **Scope**             | Distributed systems.                                                                     | Single or distributed databases.                                                                       |
+| **Independence**      | Each shard is a separate database, functioning independently.                            | Partitions may or may not be independent.                                                              |
+| **Common Use Case**   | Distributed data storage across multiple servers for scalability.                        | Organizing data for optimized query performance or ease of maintenance.                                |
+| **Key Usage**         | Sharding key determines in which shard a data piece resides.                             | Partition key determines the division of data within partitions.                                       |
+| **Partitioning Type** | Always horizontal (dividing rows).                                                       | Horizontal (rows) or vertical (columns).                                                               |
+| **Implementation**    | More complex, involving middleware or application logic for routing queries.             | Simpler, often built-in features of relational databases.                                              |
+| **Data Location**     | Shards typically reside on different servers or nodes.                                   | Partitions may reside on the same or different servers.                                                |
+| **Fault Isolation**   | High: Failure in one shard doesn’t affect others.                                        | May depend on how partitions are distributed and managed.                                              |
+| **Advantages**        | Scalability, load balancing, fault isolation.                                            | Improved query performance, easier data maintenance, and archiving.                                    |
+| **Challenges**        | Complex setup, hotspot management, requires careful design of sharding keys.             | May require additional indexing, consistency management across partitions if distributed.              |
+| **Common in**         | NoSQL databases (e.g., MongoDB, Cassandra) but also used in relational databases.        | Relational databases (e.g., MySQL, PostgreSQL, Oracle).                                                |
 
 The problem with partitioning is that users who are unlucky
 enough to land on a degraded partition are impacted as well. For
@@ -327,9 +342,8 @@ sharding with a load balancer that removes faulty instances, and
 clients that retry failed requests, we can build a system with much
 better fault isolation than one with physical partitions alone.
 
-
-
 ## Cellular architecture
+
 In the previous examples, we discussed partitioning in the context
 of stateless services. We can take it up a notch and partition the entire application stack, including its dependencies (load balancers,
 compute services, storage services, etc.), by user into **cells**. Each
@@ -347,12 +361,14 @@ test and benchmark it at that size, knowing that we won’t have any
 surprises in the future and hit some unexpected brick wall.
 
 # Downstream resiliency
+
 Now that we have discussed how to reduce the impact of faults at
 the architectural level with redundancy and partitioning, we will
 dive into tactical resiliency patterns that stop faults from propagating from one component or service to another. We
 will discuss patterns that protect a service from failures of downstream dependencies.
 
 ## Timeout
+
 When a network call is made, it’s best practice to configure a timeout to fail the call if no response is received within a certain amount
 of time. If the call is made without a timeout, there is a chance it
 will never return, network calls
@@ -382,6 +398,7 @@ remote calls made by our process. The proxy can enforce timeouts
 and monitor calls, relieving our process of this responsibility.
 
 ## Retry
+
 We know by now that a client should configure a timeout when
 making a network request. But what should it do when the
 request fails or times out? The client has two options at that point:
@@ -393,9 +410,11 @@ retries until either a maximum number of retries is reached or
 enough time has passed since the initial request.
 
 ### Exponential backoff
+
 To set the delay between retries, we can use a capped exponential
 function, where the delay is derived by multiplying the initial backoff duration by a constant that increases exponentially after each
 attempt, up to some maximum value (the cap):
+
 > delay = 𝑚𝑖𝑛(cap, initial-backoff ⋅ 2^attempt)
 
 Although exponential backoff does reduce the pressure on the
@@ -407,6 +426,7 @@ with load spikes that further degrade it.
 To avoid this herding behavior, we can introduce random jitter
 into the delay calculation. This spreads retries out over time,
 smoothing out the load to the downstream service:
+
 > delay = 𝑟𝑎𝑛𝑑𝑜𝑚(0, 𝑚𝑖𝑛(cap, initial-backoff ⋅ 2^attempt))
 
 Actively waiting and retrying failed network requests isn’t the
@@ -422,6 +442,7 @@ to retry the request since it will fail again. In this case, the process
 should fail fast and cancel the call right away.
 
 ### Retry amplification
+
 Suppose that handling a user request requires going through a
 chain of three services. The user’s client calls service A, which calls
 service B, which in turn calls service C. If the intermediate request
@@ -435,6 +456,7 @@ chain, the higher the load it will be exposed to due to retry amplification. And
 chain and failing fast in all the others.
 
 ## Circuit breaker
+
 Suppose a service uses timeouts to detect whether a downstream
 dependency is unavailable and retries to mitigate transient failures.
 If the failures aren’t transient and the downstream dependency remains unresponsive, what should it do then? If the service keeps
@@ -487,12 +509,14 @@ specific context; only by using data about past failures can we
 make an informed decision.
 
 # Upstream resiliency
+
 We discussed patterns that protect services
 against downstream failures, like failures to reach an external
 dependency. Now, we will shift gears and discuss
 mechanisms to protect against upstream pressure.
 
 ## Load shedding
+
 A server has very little control over how many requests it receives
 at any given time. The operating system has a connection queue
 per port with a limited capacity that, when reached, causes new
@@ -509,8 +533,8 @@ server’s capacity.
 
 When the server detects that it’s overloaded, it can reject incoming
 requests by failing fast and returning a response with status code
-*503 (Service Unavailable)*. This technique is also referred to as *load
-shedding*. The server doesn’t necessarily have to reject arbitrary
+_503 (Service Unavailable)_. This technique is also referred to as _load
+shedding_. The server doesn’t necessarily have to reject arbitrary
 requests; for example, if different requests have different priorities,
 the server could reject only low-priority ones. Alternatively, the
 server could reject the oldest requests first since those will be the
@@ -525,6 +549,7 @@ increasing, the cost of rejecting requests will eventually take over
 and degrade the server.
 
 ## Load leveling
+
 There is an alternative to load shedding, which can be exploited
 when clients don’t expect a prompt response. The idea is to introduce a messaging channel between the clients and the service. The
 channel decouples the load directed to the service from its capacity, allowing it to process requests at its own pace.
@@ -539,6 +564,7 @@ these protection mechanisms are typically combined with auto-
 scaling, which detects that the service is running hot and automatically increases its scale to handle the additional load.
 
 ## Rate-limiting
+
 Rate-limiting, or throttling, is a mechanism that rejects a request
 when a specific quota is exceeded. A service can have multiple
 quotas, e.g., for the number of requests or bytes received within a
@@ -578,7 +604,7 @@ service after getting 429s. Rate-limited requests aren’t free either
 to pay the price of opening a TLS connection, and at the very least,
 download part of the request to read the key. Although rate limit-
 ing doesn’t fully protect against DDoS attacks, it does help reduce
-their impact. 
+their impact.
 
 **Economies of scale** are the only true protection against DDoS attacks. If you run multiple services behind one large gateway service, no matter which of the services behind it are attacked, the
 gateway service will be able to withstand the attack by rejecting
@@ -593,12 +619,14 @@ concurrently processed for a specific API key across all service instances. And 
 of coordination is required.
 
 Rate-limiting algorithms:
+
 - Window based
 - Sliding window
 - Token bucket
 - Leaky bucket
 
 ### Single-process implementation
+
 The distributed implementation of rate-limiting is interesting in its
 own right, and it’s well worth spending some time discussing it.
 We will start with a single-process implementation first and then
@@ -641,7 +669,7 @@ Although this is an approximation, it’s a reasonably good one for
 our purposes. And it can be made more accurate by increasing
 the granularity of the buckets. So, for example, we can reduce the
 approximation error using 30-second buckets rather than 1-minute
-ones. 
+ones.
 
 We only have to store as many buckets as the sliding window can
 overlap with at any given time. For example, with a 1-minute window and a 1-minute bucket length, the sliding window can overlap
@@ -653,6 +681,7 @@ which is much more efficient in terms of memory than the naive
 implementation storing a list of requests per API key.
 
 ### Distributed implementation
+
 When more than one process accepts requests, the local state is no
 longer good enough, as the quota needs to be enforced on the total number of requests per API key across all service instances. This
 requires a shared data store to keep track of the number of requests
@@ -673,9 +702,9 @@ store is a hard dependency, the service will become unavailable if
 it can’t reach it.
 
 Let’s address these issues. Rather than using transactions, we
-can use a single atomic *get-and-increment* operation that most data
+can use a single atomic _get-and-increment_ operation that most data
 stores provide. Alternatively, the same can be emulated with
-a *compare-and-swap*. These atomic operations have much better
+a _compare-and-swap_. These atomic operations have much better
 performance than transactions.
 
 Now, rather than updating the data store on each request, the process can batch bucket updates in memory for some time and flush
@@ -690,6 +719,7 @@ just because the data store used for rate-limiting is not reachable
 could damage the business. Instead, it’s safer to keep serving requests based on the last state read from the store.
 
 ## Constant work
+
 When overload, configuration changes, or faults force an application to behave differently from usual, we say the application has
 a **multi-modal behavior**. Some of these **modes** might trigger rare
 bugs, conflict with mechanisms that assume the happy path, and
@@ -764,14 +794,15 @@ updates.
 To sum up, performing constant work is more expensive than doing just the necessary work. Still, it’s often worth considering it,
 given the increase in reliability and reduction in complexity it enables.
 
-| **Constant Work Pattern**         | **Description**                                                                                          | **Example**                                                                                     |
-|------------------------------------|----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
-| **Periodic Health Checks**         | Services routinely send/receive heartbeat signals or health check requests.                              | Monitoring tool polls all services every minute to check health status.                        |
-| **Regular Data Synchronization**   | Services exchange/update data at fixed intervals to maintain consistency.                                | User profile updates synchronized to a centralized database every 10 seconds.                 |
-| **Message Consumption Patterns**   | Services consume messages from queues in a consistent manner.                                            | Worker service processes orders from a message queue at a constant rate.                       |
-| **Fixed Scheduling Tasks (Cron)**  | Services perform scheduled operations based on a constant timing mechanism.                              | Batch processing cleans up logs every midnight; billing generates invoices monthly.            |
-| **Load Balancer Routing**          | Requests are distributed among service instances in a constant manner.                                   | Load balancer directs traffic evenly across multiple replicas of a service.                   |
-| **Periodic Cache Updates**         | Services refresh their caches at fixed intervals for performance.                                        | Product catalog service updates its cache every 5 minutes.                                     |
-| **Circuit Breaker Monitoring**     | Circuit breakers monitor availability and reset thresholds at constant intervals.                        | Failed requests retried every 10 seconds after detecting a failure.                           |
-| **Logging and Metrics Collection** | Services emit logs, metrics, and telemetry data at fixed rates for monitoring and debugging.              | Performance metrics (CPU, memory) sent every 30 seconds; error logs pushed in real time.       |
-ß 
+| **Constant Work Pattern**          | **Description**                                                                              | **Example**                                                                              |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Periodic Health Checks**         | Services routinely send/receive heartbeat signals or health check requests.                  | Monitoring tool polls all services every minute to check health status.                  |
+| **Regular Data Synchronization**   | Services exchange/update data at fixed intervals to maintain consistency.                    | User profile updates synchronized to a centralized database every 10 seconds.            |
+| **Message Consumption Patterns**   | Services consume messages from queues in a consistent manner.                                | Worker service processes orders from a message queue at a constant rate.                 |
+| **Fixed Scheduling Tasks (Cron)**  | Services perform scheduled operations based on a constant timing mechanism.                  | Batch processing cleans up logs every midnight; billing generates invoices monthly.      |
+| **Load Balancer Routing**          | Requests are distributed among service instances in a constant manner.                       | Load balancer directs traffic evenly across multiple replicas of a service.              |
+| **Periodic Cache Updates**         | Services refresh their caches at fixed intervals for performance.                            | Product catalog service updates its cache every 5 minutes.                               |
+| **Circuit Breaker Monitoring**     | Circuit breakers monitor availability and reset thresholds at constant intervals.            | Failed requests retried every 10 seconds after detecting a failure.                      |
+| **Logging and Metrics Collection** | Services emit logs, metrics, and telemetry data at fixed rates for monitoring and debugging. | Performance metrics (CPU, memory) sent every 30 seconds; error logs pushed in real time. |
+
+ß
