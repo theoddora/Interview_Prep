@@ -6,9 +6,10 @@ about the behavior of processes, communication links, and timing;
 think of it as a set of assumptions that allow us to reason about
 distributed systems by ignoring the complexity of the actual technologies used to implement them.
 
+Distributed systems literature usually refers to the network connecting two processes as a **link**.
 For example, these are some common models for communication
 links:
-* The *fair-loss* link model assumes that messages may be lost
+* The simplest type of link is called a fair-loss link, when a process P1 send a message M to a process P2, the message is in one of three states: *will be delivered in the future*, *delivered* or *lost*. The *fair-loss* link model assumes that messages may be lost
 and duplicated, but if the sender keeps retransmitting a message, eventually it will be delivered to the destination.
 * The *reliable link* model assumes that a message is delivered
 exactly once, without loss or duplication (correct, complete, and ordered delivery). A reliable link can
@@ -79,8 +80,8 @@ maintain a list of available processes using pings or heartbeats.
 
 A *ping* is a periodic request that a process sends to another to check
 whether it’s still available. The process expects a response to the
-ping within a specific time frame. If no response is received, a timeout triggers and the destination is considered unavailable. How-
-ever, the process will continue to send pings to it to detect if and
+ping within a specific time frame. If no response is received, a timeout triggers and the destination is considered unavailable. 
+However, the process will continue to send pings to it to detect if and
 when it comes back online.
 
 A *heartbeat* is a message that a process periodically sends to another.
@@ -403,8 +404,8 @@ kept in sync across processes.
 
 A log is an ordered list of entries where
 each entry includes:
-* the operation to be applied to the state. The operation needs to be deterministic so that all followers end up in the same state, but it can be arbitrarily complex as long as that requirement is respected (e.g., compare-
-and-swap or a transaction with multiple operations);
+* the operation to be applied to the state. The operation needs to be deterministic so that all followers end up in the same state, but it can be arbitrarily complex as long as that requirement is respected (e.g., 
+compare-and-swap or a transaction with multiple operations);
 * the index of the entry’s position in the log;
 * and the leader’s election term (the number in each box).
 

@@ -124,7 +124,14 @@ Think about this pattern whenever the problem asks you to find top ranking eleme
 ### Example
 - Kth largest element in an array
 
-## Dynamic programming
+# Dynamic programming
 Optimizing a solution by breaking it down to overlapping sub-problems. Two ways:
 - Top down - backtracking with memoization
 - Bottom up 
+
+# Backtracking
+
+## Brute force approach
+The solution is in the form of state space tree. 
+
+## Branch and Bound

@@ -34,3 +34,10 @@ def double(arr, val):
     print(arr, val)
 
 double([1,2,3,4], 5)
+
+def printRandNumber(num: int):
+    print(num)
+    print(15 == num)
+
+randNumber = 15.45
+printRandNumber(randNumber)
