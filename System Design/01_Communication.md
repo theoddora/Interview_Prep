@@ -633,7 +633,7 @@ safe, cachabe and whether they are idempotent.
 | PATCH   | No   | No         | Conditional\* |
 | CONNECT | No   | No         | No            |
 
-POST and PATCH are cacheable when responses explicitly include freshness information and a matching Content-Location header.
+\*POST and PATCH are cacheable when responses explicitly include freshness information and a matching Content-Location header.
 Freshness information is provided in HTTP headers, like Cache-Control or Expires. For example:
 
 > Cache-Control: max-age=3600 # Cache this response for one hour

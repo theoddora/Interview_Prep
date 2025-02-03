@@ -1,7 +1,8 @@
 # Understanding System Design Interview
 
 System design is about understanding the problem you’re trying to solve before coming up with a solution.
-In a system design interview, you’re not looking to retell a design that you watched on a tech talk and read about on an engineering blog. Passing a system design interview is about having a solid understanding of the fundamentals of the building blocks and piecing them together using problem-solving skills.
+In a system design interview, you’re not looking to retell a design that you watched on a tech talk and read about on an engineering blog.
+Passing a system design interview is about having a solid understanding of the fundamentals of the building blocks and piecing them together using problem-solving skills.
 You should understand how the problems are solved instead of taking the solution to the perfect answer.
 When you read about a piece of technology, try to understand the big picture of the problem they’re
 trying to solve and why other options were not good enough.
@@ -63,7 +64,8 @@ scale for those bottleneck challenges.
 
 ## Design API
 
-API should be after requirement gathering because APIs are the entry point to your system. After you have the requirements, it should be clear what APIs you will need. If you try to jump into high-level diagrams or schemas right away, it can be confusing because your design might have multiple APIs.
+API should be after requirement gathering because APIs are the entry point to your system. After you have the requirements, it should be clear what APIs you will need.
+If you try to jump into high-level diagrams or schemas right away, it can be confusing because your design might have multiple APIs.
 
 ### Purpose
 
